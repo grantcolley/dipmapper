@@ -1,2 +1,2 @@
 # dipmapper
-Flyweight ORM
+A flyweight ORM
