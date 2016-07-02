@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelopmentInProgress.DipMapper", "DevelopmentInProgress.DipMapper\DevelopmentInProgress.DipMapper.csproj", "{8C8F5142-DA70-438D-A602-DD60994F5BA1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevelopmentInProgress.DipMapper.Test", "DevelopmentInProgress.DipMapper.Test\DevelopmentInProgress.DipMapper.Test.csproj", "{468FE67F-4B44-4BD8-9E55-E90B05EFBFFB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{8C8F5142-DA70-438D-A602-DD60994F5BA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8C8F5142-DA70-438D-A602-DD60994F5BA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8C8F5142-DA70-438D-A602-DD60994F5BA1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{468FE67F-4B44-4BD8-9E55-E90B05EFBFFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{468FE67F-4B44-4BD8-9E55-E90B05EFBFFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{468FE67F-4B44-4BD8-9E55-E90B05EFBFFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{468FE67F-4B44-4BD8-9E55-E90B05EFBFFB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
