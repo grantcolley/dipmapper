@@ -1,7 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
 using System.Linq;
 using System.Reflection;
 
@@ -59,17 +59,23 @@ namespace DevelopmentInProgress.DipMapper
         public static string GetSelectFields<T>()
         {
             string fields = string.Empty;
-            var propertyInfos =
-                typeof (T).GetProperties()
-                    .Where(
-                        p =>
-                            !p.GetType()
-                                .GetInterfaces()
-                                .Any(
-                                    i =>
-                                        i.IsGenericType &&
-                                        i.GetGenericTypeDefinition().Name.Equals(typeof (IEnumerable<>).Name)));
-            fields = propertyInfos.Aggregate(fields, (current, propertyInfo) => current + (propertyInfo.Name + ", "));
+            var propertyInfos = typeof(T).GetProperties();
+
+            foreach (var propertyInfo in propertyInfos)
+            {
+                if (propertyInfo.PropertyType != typeof (string) &&
+                    propertyInfo.PropertyType.GetInterfaces()
+                        .Any(
+                            i =>
+                                (i.IsGenericType &&
+                                 i.GetGenericTypeDefinition().Name.Equals(typeof (IEnumerable<>).Name)) ||
+                                i.GetTypeInfo().Name.Equals(typeof (IEnumerable).Name)))
+                {
+                    continue;
+                }
+
+                fields += propertyInfo.Name + ", ";
+            }    
 
             if (fields.EndsWith(", "))
             {
