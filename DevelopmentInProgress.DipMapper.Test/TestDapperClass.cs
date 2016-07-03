@@ -9,5 +9,6 @@ namespace DevelopmentInProgress.DipMapper.Test
         public string Name { get; set; }
         public DateTime Date { get; set; }
         public IEnumerable<TestDapperClass> TestDataClasses { get; set; }
+        public IList<TestDapperClass> TestDataClasse { get; set; }
     }
 }
