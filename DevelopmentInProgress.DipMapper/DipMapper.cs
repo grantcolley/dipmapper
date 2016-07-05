@@ -48,7 +48,7 @@ namespace DevelopmentInProgress.DipMapper
                 return GetStoredProcedureParameters(paramaters);
             }
 
-            return "SELECT " + GetSelectFields<T>() + " FROM " + typeof (T).Name + GetSqlWhereClause(paramaters);
+            return GetSelectSql<T>() + GetWhereSql(paramaters);
         }
 
         private static string GetStoredProcedureParameters(Dictionary<string, object> paramaters)
@@ -56,9 +56,9 @@ namespace DevelopmentInProgress.DipMapper
             throw new NotImplementedException();
         }
 
-        public static string GetSelectFields<T>()
+        public static string GetSelectSql<T>()
         {
-            string fields = string.Empty;
+            string select = "SELECT ";
             var propertyInfos = typeof(T).GetProperties();
 
             foreach (var propertyInfo in propertyInfos)
@@ -74,20 +74,67 @@ namespace DevelopmentInProgress.DipMapper
                     continue;
                 }
 
-                fields += propertyInfo.Name + ", ";
-            }    
-
-            if (fields.EndsWith(", "))
-            {
-                fields = fields.Remove(fields.Length - 2, 2);
+                select += propertyInfo.Name + ", ";
             }
 
-            return fields;
+            if (select.EndsWith(", "))
+            {
+                select = select.Remove(select.Length - 2, 2);
+            }
+
+            select += " FROM " + typeof (T).Name;
+
+            return select;
         }
 
-        public static string GetSqlWhereClause(Dictionary<string, object> parameters)
+        public static string GetWhereSql(Dictionary<string, object> parameters)
         {
-            return string.Empty;
+            if (parameters == null
+                || !parameters.Any())
+            {
+                return string.Empty;
+            }
+
+            string where = "WHERE ";
+
+            foreach (var parameter in parameters)
+            {
+                where += parameter.Key + "=" + SqlConvert(parameter.Value) + " AND ";
+            }
+
+            if (where.EndsWith(" AND "))
+            {
+                where = where.Remove(where.Length - 5, 5);
+            }
+
+            return where;
+        }
+
+        private static string SqlConvert(object value)
+        {
+            if (value == null)
+            {
+                return "null";
+            }
+
+                switch (value.GetType().Name)
+                {
+                    case "String":
+                        if (string.IsNullOrEmpty(value.ToString()))
+                        {
+                            return "null";
+                        }
+
+                        return "'" + value + "'";
+
+                    case "DateTime":
+                        return "'" + ((DateTime)value).Date + "'";
+
+                    case "Int32":
+                        return value.ToString();
+                }
+
+            throw new Exception("DipMapper currently does not support " + value.GetType().Name);
         }
     }
 }
