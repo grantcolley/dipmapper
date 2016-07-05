@@ -52,7 +52,7 @@
   <ItemGroup>
     <Compile Include="DipMapperTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TestDapperClass.cs" />
+    <Compile Include="Activity.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DevelopmentInProgress.DipMapper\DevelopmentInProgress.DipMapper.csproj">
