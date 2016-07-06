@@ -50,7 +50,9 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="ActivityType.cs" />
     <Compile Include="DipMapperTest.cs" />
+    <Compile Include="GenericActivity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Activity.cs" />
   </ItemGroup>

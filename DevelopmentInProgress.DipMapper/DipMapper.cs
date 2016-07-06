@@ -63,13 +63,20 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var propertyInfo in propertyInfos)
             {
-                if (propertyInfo.PropertyType != typeof (string) &&
-                    propertyInfo.PropertyType.GetInterfaces()
-                        .Any(
-                            i =>
-                                (i.IsGenericType &&
-                                 i.GetGenericTypeDefinition().Name.Equals(typeof (IEnumerable<>).Name)) ||
-                                i.GetTypeInfo().Name.Equals(typeof (IEnumerable).Name)))
+                // Skip non-public properties and properties that are either 
+                // classes (but not strings), interfaces, lists, generic 
+                // lists or arrays.
+                var propertyType = propertyInfo.PropertyType;
+                if (propertyType != typeof (string)
+                    && (propertyType.IsClass
+                        || propertyType.IsInterface
+                        || propertyType.IsArray
+                        || propertyType.GetInterfaces()
+                            .Any(
+                                i =>
+                                    (i.GetTypeInfo().Name.Equals(typeof (IEnumerable).Name)
+                                     || (i.IsGenericType &&
+                                         i.GetGenericTypeDefinition().Name.Equals(typeof (IEnumerable<>).Name))))))
                 {
                     continue;
                 }
@@ -82,7 +89,15 @@ namespace DevelopmentInProgress.DipMapper
                 select = select.Remove(select.Length - 2, 2);
             }
 
-            select += " FROM " + typeof (T).Name;
+            if (typeof(T).IsGenericType
+                && typeof(T).GenericTypeArguments.Any())
+            {
+                select += " FROM " + typeof(T).GenericTypeArguments[0].Name;
+            }
+            else
+            {
+                select += " FROM " + typeof (T).Name;
+            }
 
             return select;
         }
@@ -117,24 +132,30 @@ namespace DevelopmentInProgress.DipMapper
                 return "null";
             }
 
-                switch (value.GetType().Name)
-                {
-                    case "String":
-                        if (string.IsNullOrEmpty(value.ToString()))
-                        {
-                            return "null";
-                        }
+            switch (value.GetType().Name)
+            {
+                case "String":
+                    if (string.IsNullOrEmpty(value.ToString()))
+                    {
+                        return "null";
+                    }
 
-                        return "'" + value + "'";
+                    return "'" + value + "'";
 
-                    case "DateTime":
-                        return "'" + ((DateTime)value).Date + "'";
+                case "Boolean":
+                    return (bool) value ? "1" : "0";
 
-                    case "Int32":
-                        return value.ToString();
-                }
+                case "DateTime":
+                    return "'" + ((DateTime) value).Date + "'";
 
-            throw new Exception("DipMapper currently does not support " + value.GetType().Name);
+                default:
+                    if (value.GetType().IsEnum)
+                    {
+                        return Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType())).ToString();
+                    }
+
+                    return value.ToString();
+            }
         }
     }
 }

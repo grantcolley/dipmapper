@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DevelopmentInProgress.DipMapper.Test
@@ -7,7 +8,7 @@ namespace DevelopmentInProgress.DipMapper.Test
     public class DipMapperTest
     {
         [TestMethod]
-        public void DipMapper_GetSelectSql_Test()
+        public void DipMapper_GetSelectSql_ClassTest()
         {
             // Arrange
 
@@ -15,7 +16,31 @@ namespace DevelopmentInProgress.DipMapper.Test
             string fields = DipMapper.GetSelectSql<Activity>();
 
             // Assert
-            Assert.AreEqual(fields, "SELECT Id, Name, Number, Date, NullableDate FROM Activity");
+            Assert.AreEqual(fields, "SELECT Id, Name, Number, IsActive, ActivityType, Date, NullableDate FROM Activity");
+        }
+
+        [TestMethod]
+        public void DipMapper_GetSelectSql_GenericClassReferenceTypeTest()
+        {
+            // Arrange
+
+            // Act
+            string fields = DipMapper.GetSelectSql<GenericActivity<Activity>>();
+
+            // Assert
+            Assert.AreEqual(fields, "SELECT Id, Name FROM Activity");
+        }
+
+        [TestMethod]
+        public void DipMapper_GetSelectSql_GenericClassValueTypeTest()
+        {
+            // Arrange
+
+            // Act
+            string fields = DipMapper.GetSelectSql<GenericActivity<int>>();
+
+            // Assert
+            Assert.AreEqual(fields, "SELECT Id, Name, GenericProperty FROM GenericActivity");
         }
 
         [TestMethod]
@@ -46,13 +71,21 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void DipMapper_GetWhereSql_HasParameters_Test()
         {
             // Arrange
-            var activity = new Activity() {Id = 5, Name = "TestActivity"};
+            var activity = new Activity()
+            {
+                Id = 5,
+                Name = "TestActivity",
+                IsActive = true,
+                ActivityType = ActivityTypeEnum.Private
+            };
             
             var parameters = new Dictionary<string, object>();
             parameters.Add("Id", activity.Id);
             parameters.Add("Name", activity.Name);
             parameters.Add("Date", activity.Date);
             parameters.Add("NullableDate", activity.NullableDate);
+            parameters.Add("IsActive", activity.IsActive);
+            parameters.Add("ActivityType", activity.ActivityType);
 
             // Act
             string where = DipMapper.GetWhereSql(parameters);
