@@ -30,6 +30,13 @@ namespace DevelopmentInProgress.DipMapper
             return results;
         }
 
+        public static string Insert<T>(this IDbConnection conn)
+        {
+            OpenConnection(conn);
+
+
+        }
+
         public static void OpenConnection(IDbConnection conn)
         {
             if (conn.State == ConnectionState.Closed)
@@ -59,48 +66,58 @@ namespace DevelopmentInProgress.DipMapper
 
         public static string GetSelectSql<T>()
         {
-            string select = "SELECT ";
+            string fields = GetFields<T>();
+
+            if (typeof (T).IsGenericType
+                && typeof (T).GenericTypeArguments.Any())
+            {
+                return "SELECT " + fields + " FROM " + typeof (T).GenericTypeArguments[0].Name;
+            }
+
+            return "SELECT " + fields + " FROM " + typeof (T).Name;
+        }
+
+        private static string GetFields<T>(IEnumerable<string> ignore = null)
+        {
+            string fields = string.Empty;
+
             var propertyInfos = typeof(T).GetProperties();
 
             foreach (var propertyInfo in propertyInfos)
             {
+                if (ignore != null
+                    && ignore.Contains(propertyInfo.Name))
+                {
+                    continue;
+                }
+
                 // Skip non-public properties and properties that are either 
                 // classes (but not strings), interfaces, lists, generic 
                 // lists or arrays.
                 var propertyType = propertyInfo.PropertyType;
-                if (propertyType != typeof (string)
+                if (propertyType != typeof(string)
                     && (propertyType.IsClass
                         || propertyType.IsInterface
                         || propertyType.IsArray
                         || propertyType.GetInterfaces()
                             .Any(
                                 i =>
-                                    (i.GetTypeInfo().Name.Equals(typeof (IEnumerable).Name)
+                                    (i.GetTypeInfo().Name.Equals(typeof(IEnumerable).Name)
                                      || (i.IsGenericType &&
-                                         i.GetGenericTypeDefinition().Name.Equals(typeof (IEnumerable<>).Name))))))
+                                         i.GetGenericTypeDefinition().Name.Equals(typeof(IEnumerable<>).Name))))))
                 {
                     continue;
                 }
 
-                select += propertyInfo.Name + ", ";
+                fields += propertyInfo.Name + ", ";
             }
 
-            if (select.EndsWith(", "))
+            if (fields.EndsWith(", "))
             {
-                select = select.Remove(select.Length - 2, 2);
+                fields = fields.Remove(fields.Length - 2, 2);
             }
 
-            if (typeof(T).IsGenericType
-                && typeof(T).GenericTypeArguments.Any())
-            {
-                select += " FROM " + typeof(T).GenericTypeArguments[0].Name;
-            }
-            else
-            {
-                select += " FROM " + typeof (T).Name;
-            }
-
-            return select;
+            return fields;
         }
 
         public static string GetWhereSql(Dictionary<string, object> parameters)
