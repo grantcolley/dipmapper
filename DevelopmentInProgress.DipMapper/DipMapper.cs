@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Remoting.Messaging;
 
 namespace DevelopmentInProgress.DipMapper
 {
@@ -114,7 +115,7 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var parameter in parameters)
             {
-                where += parameter.Key + "=" + SqlConvert(parameter.Value) + " AND ";
+                where += parameter.Key + WhereValue(parameter.Value) + " AND ";
             }
 
             if (where.EndsWith(" AND "))
@@ -123,6 +124,17 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             return where;
+        }
+
+        private static string WhereValue(object value)
+        {
+            var result = SqlConvert(value);
+            if (result == "null")
+            {
+                return " is " + result;
+            }
+
+            return "=" + result;
         }
 
         private static string SqlConvert(object value)
