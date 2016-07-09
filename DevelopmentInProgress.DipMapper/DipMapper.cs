@@ -58,7 +58,7 @@ namespace DevelopmentInProgress.DipMapper
 
         internal static string GetSqlSelect<T>()
         {
-            return "SELECT " + GetFields<T>() + " FROM " + GetTableName<T>();
+            return "SELECT " + GetSqlFields<T>() + " FROM " + GetSqlTableName<T>();
         }
 
         internal static string GetSqlUpdate<T>(T target, Dictionary<string, object> parameters)
@@ -70,13 +70,13 @@ namespace DevelopmentInProgress.DipMapper
                 ignore = parameters.Keys;
             }
 
-            return "UPDATE " + GetTableName<T>() + " SET " 
-                + GetFields<T>(target, ignore) + GetSqlWhereClause(parameters);
+            return "UPDATE " + GetSqlTableName<T>() + " SET " 
+                + GetSqlFields<T>(target, ignore) + GetSqlWhereClause(parameters);
         }
 
         internal static string GetSqlDelete<T>(Dictionary<string, object> parameters)
         {
-            return "DELETE FROM " + GetTableName<T>() + GetSqlWhereClause(parameters);
+            return "DELETE FROM " + GetSqlTableName<T>() + GetSqlWhereClause(parameters);
         }
 
         internal static string GetSqlWhereClause(Dictionary<string, object> parameters)
@@ -102,7 +102,7 @@ namespace DevelopmentInProgress.DipMapper
             return where;
         }
 
-        internal static string GetTableName<T>()
+        internal static string GetSqlTableName<T>()
         {
             if (typeof (T).IsGenericType
                 && typeof (T).GenericTypeArguments.Any())
@@ -113,7 +113,7 @@ namespace DevelopmentInProgress.DipMapper
             return typeof (T).Name;
         }
 
-        internal static string GetFields<T>(T target = default(T), IEnumerable<string> ignore = null)
+        internal static string GetSqlFields<T>(T target = default(T), IEnumerable<string> ignore = null)
         {
             bool isUpdate = target != null;
             string fields = string.Empty;
@@ -121,11 +121,11 @@ namespace DevelopmentInProgress.DipMapper
 
             if (isUpdate)
             {
-                propertyInfos = target.GetType().GetProperties(BindingFlags.Public);
+                propertyInfos = target.GetType().GetProperties();
             }
             else
             {
-                propertyInfos = typeof(T).GetProperties(BindingFlags.Public);
+                propertyInfos = typeof(T).GetProperties();
             }
 
             foreach (var propertyInfo in propertyInfos)
@@ -141,6 +141,11 @@ namespace DevelopmentInProgress.DipMapper
                 // classes (but not strings), interfaces, lists, generic 
                 // lists or arrays.
                 var propertyType = propertyInfo.PropertyType;
+                if (propertyType.IsNotPublic)
+                {
+                    continue;
+                }
+
                 if (propertyType != typeof(string)
                     && (propertyType.IsClass
                         || propertyType.IsInterface
