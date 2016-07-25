@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -12,16 +13,51 @@ namespace DevelopmentInProgress.DipMapper
 {
     public static class DipMapper
     {
-        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null)
+        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null) where T : new()
         {
             return Select<T>(conn, paramaters).FirstOrDefault();
         }
 
         public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null)
+            where T : new()
         {
+            var result = new List<T>();
             var sql = GetSqlSelect<T>(paramaters);
-            OpenConnection(conn);
-            throw new NotImplementedException();
+            using (conn)
+            {
+                IDataReader reader = null;
+
+                try
+                {
+                    var command = GetCommand(conn, sql, paramaters);
+                    OpenConnection(conn);
+
+                    reader = command.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        var t = new T();
+
+                    }
+
+                    reader.Close();
+                }
+                finally
+                {
+                    if (reader != null
+                        && !reader.IsClosed)
+                    {
+                        reader.Close();
+                        reader.Dispose();
+                    }
+
+                    if (conn.State != ConnectionState.Closed)
+                    {
+                        conn.Close();
+                    }
+                }
+            }
+
+            return result;
         }
 
         public static T Insert<T>(this IDbConnection conn, T target, IEnumerable<string> identityFields)
@@ -96,7 +132,7 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var parameter in parameters)
             {
-                where += parameter.Key + GetSqlWhereAssignment(parameter.Value) + " AND ";
+                where += parameter.Key + GetSqlWhereAssignment(parameter.Value) + "@" + parameter.Key + " AND ";
             }
 
             if (where.EndsWith(" AND "))
@@ -154,7 +190,7 @@ namespace DevelopmentInProgress.DipMapper
                     continue;
                 }
 
-                fields += propertyInfo.Name + GetSqlUpdateAssignment(propertyInfo.GetValue(target)) + ", ";
+                fields += propertyInfo.Name + "=@" + propertyInfo.Name + ", ";
             }
 
             fields = fields.Remove(fields.Length - 2, 2);
@@ -164,7 +200,7 @@ namespace DevelopmentInProgress.DipMapper
         internal static string GetSqlInsertFields<T>(T target, IEnumerable<string> identityFields)
         {
             string fields = string.Empty;
-            string values = string.Empty;
+            string parameters = string.Empty;
             PropertyInfo[] propertyInfos = target.GetType().GetProperties();
 
             foreach (var propertyInfo in propertyInfos)
@@ -180,13 +216,13 @@ namespace DevelopmentInProgress.DipMapper
                 }
 
                 fields += propertyInfo.Name + ", ";
-                values += SqlConvert(propertyInfo.GetValue(target)) + ", ";
+                parameters += "@" + propertyInfo.Name + ", ";
             }
 
             fields = fields.Remove(fields.Length - 2, 2);
-            values = values.Remove(values.Length - 2, 2);
+            parameters = parameters.Remove(parameters.Length - 2, 2);
 
-            return " (" + fields + ") VALUES (" + values + ")";
+            return " (" + fields + ") VALUES (" + parameters + ")";
         }
 
         internal static bool SkipProperty(PropertyInfo propertyInfo)
@@ -219,18 +255,18 @@ namespace DevelopmentInProgress.DipMapper
 
         private static string GetSqlWhereAssignment(object value)
         {
-            var result = SqlConvert(value);
-            if (result == "null")
+            if (value == null)
             {
-                return " is " + result;
+                return " is ";
             }
 
-            return "=" + result;
-        }
+            if (value.GetType().Name == "String"
+                && string.IsNullOrEmpty(value.ToString()))
+            {
+                return " is ";
+            }
 
-        private static string GetSqlUpdateAssignment(object value)
-        {
-            return "=" + SqlConvert(value);
+            return "=";
         }
 
         private static string SqlConvert(object value)
@@ -276,6 +312,17 @@ namespace DevelopmentInProgress.DipMapper
             {
                 throw new Exception("Unable to open connection. ConnectionState=" + conn.State);
             }
+        }
+
+        private static IDbCommand GetCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters)
+        {
+            var sqlCommand = new SqlCommand(queryString, conn as SqlConnection);
+            foreach (var kvp in parameters)
+            {
+                sqlCommand.Parameters.AddWithValue(kvp.Key, kvp.Value);
+            }
+
+            return sqlCommand;
         }
 
         //private static string GetCommandText<T>(CommandType commandType, Dictionary<string, object> paramaters)
