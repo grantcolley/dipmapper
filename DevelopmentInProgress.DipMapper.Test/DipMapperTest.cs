@@ -113,9 +113,9 @@ namespace DevelopmentInProgress.DipMapper.Test
             var sqlGenericEmail = DipMapper.GetSqlUpdateFields<GenericActivity<Int32>>(genericEmail, ignoreId);
 
             // Assert
-            Assert.AreEqual(sqlEmail, string.Format("Name='Email', Level=3, IsActive=1, Created='{0}', Updated=null, ActivityType=1", DateTime.Today.Date));
-            Assert.AreEqual(sqlGenericWrite, string.Format("Name='Generic Write', Level=5, IsActive=1, Created='{0}', Updated='{0}', ActivityType=2", DateTime.Today.Date));
-            Assert.AreEqual(sqlGenericEmail, string.Format("Name='Generic Email', Level=4, IsActive=0, Created='{0}', Updated=null, ActivityType=0, GenericProperty=8", DateTime.Today.Date));
+            Assert.AreEqual(sqlEmail, "Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType");
+            Assert.AreEqual(sqlGenericWrite, "Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType");
+            Assert.AreEqual(sqlGenericEmail, "Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType, GenericProperty=@GenericProperty");
         }
 
         [TestMethod]
@@ -136,7 +136,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             var sqlWhereClause = DipMapper.GetSqlWhereClause(parameters);
 
             // Assert
-            Assert.AreEqual(sqlWhereClause, string.Format(" WHERE Id=7 AND Name='Generic Email' AND Level=4 AND IsActive=0 AND Created='{0}' AND Updated is null AND ActivityType=0 AND GenericProperty=8", DateTime.Today.Date));
+            Assert.AreEqual(sqlWhereClause, " WHERE Id=@Id AND Name=@Name AND Level=@Level AND IsActive=@IsActive AND Created=@Created AND Updated is @Updated AND ActivityType=@ActivityType AND GenericProperty=@GenericProperty");
         }
 
         [TestMethod]
@@ -174,9 +174,9 @@ namespace DevelopmentInProgress.DipMapper.Test
             var sqlSelectGenericInt32 = DipMapper.GetSqlSelect<GenericActivity<Int32>>(parametersGenericActivityInt32);
 
             // Assert
-            Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=6;");
-            Assert.AreEqual(sqlSelectGeneric, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=8;");
-            Assert.AreEqual(sqlSelectGenericInt32, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=7;");
+            Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@Id;");
+            Assert.AreEqual(sqlSelectGeneric, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@Id;");
+            Assert.AreEqual(sqlSelectGenericInt32, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=@Id;");
         }
 
         [TestMethod]
@@ -190,9 +190,9 @@ namespace DevelopmentInProgress.DipMapper.Test
             var sqlInsertGenericEmail = DipMapper.GetSqlInsert<GenericActivity<Int32>>(genericEmail, new [] { "Id" });
 
             // Assert
-            Assert.AreEqual(sqlInsertEmail, string.Format("INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES ('Email', 3, 1, '{0}', null, 1);", DateTime.Today.Date));
-            Assert.AreEqual(sqlInsertGenericWrite, string.Format("INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES ('Generic Write', 5, 1, '{0}', '{0}', 2);", DateTime.Today.Date));
-            Assert.AreEqual(sqlInsertGenericEmail, string.Format("INSERT INTO Int32 (Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty) VALUES ('Generic Email', 4, 0, '{0}', null, 0, 8);", DateTime.Today.Date));
+            Assert.AreEqual(sqlInsertEmail, "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);");
+            Assert.AreEqual(sqlInsertGenericWrite, "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);");
+            Assert.AreEqual(sqlInsertGenericEmail, "INSERT INTO Int32 (Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType, @GenericProperty);");
         }
 
         [TestMethod]
@@ -214,9 +214,9 @@ namespace DevelopmentInProgress.DipMapper.Test
             var sqlUpdateGenericEmail = DipMapper.GetSqlUpdate<GenericActivity<Int32>>(genericEmail, parametersGenericActivityInt32);
 
             // Assert
-            Assert.AreEqual(sqlUpdateEmail, string.Format("UPDATE Activity SET Name='Email', Level=3, IsActive=1, Created='{0}', Updated=null, ActivityType=1 WHERE Id=6;", DateTime.Today.Date));
-            Assert.AreEqual(sqlUpdateGenericWrite, string.Format("UPDATE Activity SET Name='Generic Write', Level=5, IsActive=1, Created='{0}', Updated='{0}', ActivityType=2 WHERE Id=8;", DateTime.Today.Date));
-            Assert.AreEqual(sqlUpdateGenericEmail, string.Format("UPDATE Int32 SET Name='Generic Email', Level=4, IsActive=0, Created='{0}', Updated=null, ActivityType=0, GenericProperty=8 WHERE Id=7;", DateTime.Today.Date));
+            Assert.AreEqual(sqlUpdateEmail, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@Id;");
+            Assert.AreEqual(sqlUpdateGenericWrite, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@Id;");
+            Assert.AreEqual(sqlUpdateGenericEmail, "UPDATE Int32 SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType, GenericProperty=@GenericProperty WHERE Id=@Id;");
         }
 
         [TestMethod]
@@ -238,9 +238,9 @@ namespace DevelopmentInProgress.DipMapper.Test
             var sqlDeleteGenericEmail = DipMapper.GetSqlDelete<GenericActivity<Int32>>(parametersGenericActivityInt32);
 
             // Assert
-            Assert.AreEqual(sqlDeleteEmail, "DELETE FROM Activity WHERE Id=6;");
-            Assert.AreEqual(sqlDeleteGenericWrite, "DELETE FROM Activity WHERE Id=8;");
-            Assert.AreEqual(sqlDeleteGenericEmail, "DELETE FROM Int32 WHERE Id=7;");
+            Assert.AreEqual(sqlDeleteEmail, "DELETE FROM Activity WHERE Id=@Id;");
+            Assert.AreEqual(sqlDeleteGenericWrite, "DELETE FROM Activity WHERE Id=@Id;");
+            Assert.AreEqual(sqlDeleteGenericEmail, "DELETE FROM Int32 WHERE Id=@Id;");
         }
     }
 }
