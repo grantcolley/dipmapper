@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -316,7 +317,17 @@ namespace DevelopmentInProgress.DipMapper
 
         private static IDbCommand GetCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters)
         {
-            var sqlCommand = new SqlCommand(queryString, conn as SqlConnection);
+            if (conn is SqlConnection)
+            {
+                return GetSqlCommand((SqlConnection)conn, queryString, parameters);
+            }
+
+            throw new NotImplementedException("IDbConnection not recognised.");
+        }
+
+        private static SqlCommand GetSqlCommand(SqlConnection conn, string queryString, Dictionary<string, object> parameters)
+        {
+            var sqlCommand = new SqlCommand(queryString, conn);
             foreach (var kvp in parameters)
             {
                 sqlCommand.Parameters.AddWithValue(kvp.Key, kvp.Value);
