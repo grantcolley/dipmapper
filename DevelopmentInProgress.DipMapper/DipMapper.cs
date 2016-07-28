@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -19,8 +18,7 @@ namespace DevelopmentInProgress.DipMapper
             return Select<T>(conn, paramaters).FirstOrDefault();
         }
 
-        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null)
-            where T : new()
+        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null) where T : new()
         {
             var result = new List<T>();
             var sql = GetSqlSelect<T>(paramaters);
@@ -36,7 +34,7 @@ namespace DevelopmentInProgress.DipMapper
                     reader = command.ExecuteReader();
                     while (reader.Read())
                     {
-                        var t = new T();
+                        var t = CreateNew<T>();
 
                     }
 
@@ -270,37 +268,42 @@ namespace DevelopmentInProgress.DipMapper
             return "=";
         }
 
-        private static string SqlConvert(object value)
+        //private static string SqlConvert(object value)
+        //{
+        //    if (value == null)
+        //    {
+        //        return "null";
+        //    }
+
+        //    switch (value.GetType().Name)
+        //    {
+        //        case "String":
+        //            if (string.IsNullOrEmpty(value.ToString()))
+        //            {
+        //                return "null";
+        //            }
+
+        //            return "'" + value + "'";
+
+        //        case "Boolean":
+        //            return (bool) value ? "1" : "0";
+
+        //        case "DateTime":
+        //            return "'" + ((DateTime) value).Date + "'";
+
+        //        default:
+        //            if (value.GetType().IsEnum)
+        //            {
+        //                return Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType())).ToString();
+        //            }
+
+        //            return value.ToString();
+        //    }
+        //}
+
+        private static T CreateNew<T>()
         {
-            if (value == null)
-            {
-                return "null";
-            }
-
-            switch (value.GetType().Name)
-            {
-                case "String":
-                    if (string.IsNullOrEmpty(value.ToString()))
-                    {
-                        return "null";
-                    }
-
-                    return "'" + value + "'";
-
-                case "Boolean":
-                    return (bool) value ? "1" : "0";
-
-                case "DateTime":
-                    return "'" + ((DateTime) value).Date + "'";
-
-                default:
-                    if (value.GetType().IsEnum)
-                    {
-                        return Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType())).ToString();
-                    }
-
-                    return value.ToString();
-            }
+            return Activator.CreateInstance<T>();
         }
 
         private static void OpenConnection(IDbConnection conn)
