@@ -13,22 +13,24 @@ namespace DevelopmentInProgress.DipMapper
 {
     public static class DipMapper
     {
-        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null) where T : new()
+        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null) where T : new()
         {
-            return Select<T>(conn, paramaters).FirstOrDefault();
+            return Select<T>(conn, parameters).FirstOrDefault();
         }
 
-        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null) where T : new()
+        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null) where T : new()
         {
             var result = new List<T>();
-            var sql = GetSqlSelect<T>(paramaters);
+            var propertyInfos = GetPropertyInfos<T>();
+            var sql = GetSqlSelect<T>(propertyInfos, parameters);
+
             using (conn)
             {
                 IDataReader reader = null;
 
                 try
                 {
-                    var command = GetCommand(conn, sql, paramaters);
+                    var command = GetCommand(conn, sql, parameters);
                     OpenConnection(conn);
 
                     reader = command.ExecuteReader();
@@ -61,57 +63,58 @@ namespace DevelopmentInProgress.DipMapper
 
         public static T Insert<T>(this IDbConnection conn, T target, IEnumerable<string> identityFields)
         {
-            var sql = GetSqlInsert<T>(target, identityFields);
+            var propertyInfos = GetPropertyInfos<T>(identityFields);
+            var sql = GetSqlInsert<T>(propertyInfos);
             OpenConnection(conn);
             throw new NotImplementedException();
         }
 
-        public static T Update<T>(this IDbConnection conn, T target, Dictionary<string, object> paramaters = null)
-        {
-            var sql = GetSqlUpdate<T>(target, paramaters);
-            OpenConnection(conn);
-            throw new NotImplementedException();
-        }
-
-        public static void Delete<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null)
-        {
-            var sql = GetSqlDelete<T>(paramaters);
-            OpenConnection(conn);
-            throw new NotImplementedException();
-        }
-
-        public static T ExecuteScalar<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null, CommandType commandType = CommandType.TableDirect, string sql = "")
-        {
-            OpenConnection(conn);
-            throw new NotImplementedException();
-        }
-
-        public static IEnumerable<T> Execute<T>(this IDbConnection conn, Dictionary<string, object> paramaters = null, CommandType commandType = CommandType.TableDirect, string sql = "")
-        {
-            OpenConnection(conn);
-            throw new NotImplementedException();
-        }
-
-        internal static string GetSqlSelect<T>(Dictionary<string, object> paramaters = null)
-        {
-            return "SELECT " + GetSqlSelectFields<T>() + " FROM " + GetSqlTableName<T>() + GetSqlWhereClause(paramaters) + ";";
-        }
-
-        internal static string GetSqlInsert<T>(T target, IEnumerable<string> identityFields)
-        {
-            return "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields(target, identityFields) + ";";
-        }
-
-        internal static string GetSqlUpdate<T>(T target, Dictionary<string, object> parameters)
+        public static T Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null)
         {
             IEnumerable<string> ignore = null;
-
             if (parameters != null)
             {
                 ignore = parameters.Keys;
             }
 
-            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields<T>(target, ignore) + GetSqlWhereClause(parameters) + ";";
+            var propertyInfos = GetPropertyInfos<T>(ignore);
+            var sql = GetSqlUpdate<T>(propertyInfos, parameters);
+            OpenConnection(conn);
+            throw new NotImplementedException();
+        }
+
+        public static void Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null)
+        {
+            var sql = GetSqlDelete<T>(parameters);
+            OpenConnection(conn);
+            throw new NotImplementedException();
+        }
+
+        public static T ExecuteScalar<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect, string sql = "")
+        {
+            OpenConnection(conn);
+            throw new NotImplementedException();
+        }
+
+        public static IEnumerable<T> Execute<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect, string sql = "")
+        {
+            OpenConnection(conn);
+            throw new NotImplementedException();
+        }
+
+        internal static string GetSqlSelect<T>(IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters = null)
+        {
+            return "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + GetSqlWhereClause(parameters) + ";";
+        }
+
+        internal static string GetSqlInsert<T>(IEnumerable<PropertyInfo> propertyInfos)
+        {
+            return "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields(propertyInfos) + ";";
+        }
+
+        internal static string GetSqlUpdate<T>(IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters)
+        {
+            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields(propertyInfos) + GetSqlWhereClause(parameters) + ";";
         }
 
         internal static string GetSqlDelete<T>(Dictionary<string, object> parameters)
@@ -142,40 +145,15 @@ namespace DevelopmentInProgress.DipMapper
             return where;
         }
 
-        internal static string GetSqlTableName<T>()
+        internal static IList<PropertyInfo> GetPropertyInfos<T>(IEnumerable<string> ignore = null)
         {
-            if (typeof (T).IsGenericType
-                && typeof (T).GenericTypeArguments.Any())
+            if (ignore == null)
             {
-                return typeof (T).GenericTypeArguments[0].Name;
+                ignore = new List<string>();
             }
 
-            return typeof (T).Name;
-        }
-
-        internal static string GetSqlSelectFields<T>()
-        {
-            string fields = string.Empty;
-            PropertyInfo[] propertyInfos = typeof (T).GetProperties();
-
-            foreach (var propertyInfo in propertyInfos)
-            {
-                if (SkipProperty(propertyInfo))
-                {
-                    continue;
-                }
-
-                fields += propertyInfo.Name + ", ";
-            }
-
-            fields = fields.Remove(fields.Length - 2, 2);
-            return fields;
-        }
-
-        internal static string GetSqlUpdateFields<T>(T target, IEnumerable<string> ignore)
-        {
-            string fields = string.Empty;
-            PropertyInfo[] propertyInfos = target.GetType().GetProperties();
+            var propertyInfoResults = new List<PropertyInfo>();
+            PropertyInfo[] propertyInfos = typeof(T).GetProperties();
 
             foreach (var propertyInfo in propertyInfos)
             {
@@ -189,6 +167,42 @@ namespace DevelopmentInProgress.DipMapper
                     continue;
                 }
 
+                propertyInfoResults.Add(propertyInfo);
+            }
+
+            return propertyInfoResults;
+        }
+
+        internal static string GetSqlTableName<T>()
+        {
+            if (typeof (T).IsGenericType
+                && typeof (T).GenericTypeArguments.Any())
+            {
+                return typeof (T).GenericTypeArguments[0].Name;
+            }
+
+            return typeof (T).Name;
+        }
+
+        internal static string GetSqlSelectFields(IEnumerable<PropertyInfo> propertyInfos)
+        {
+            string fields = string.Empty;
+
+            foreach (var propertyInfo in propertyInfos)
+            {
+                fields += propertyInfo.Name + ", ";
+            }
+
+            fields = fields.Remove(fields.Length - 2, 2);
+            return fields;
+        }
+
+        internal static string GetSqlUpdateFields(IEnumerable<PropertyInfo> propertyInfos)
+        {
+            string fields = string.Empty;
+
+            foreach (var propertyInfo in propertyInfos)
+            {
                 fields += propertyInfo.Name + "=@" + propertyInfo.Name + ", ";
             }
 
@@ -196,24 +210,13 @@ namespace DevelopmentInProgress.DipMapper
             return fields;
         }
 
-        internal static string GetSqlInsertFields<T>(T target, IEnumerable<string> identityFields)
+        internal static string GetSqlInsertFields(IEnumerable<PropertyInfo> propertyInfos)
         {
             string fields = string.Empty;
             string parameters = string.Empty;
-            PropertyInfo[] propertyInfos = target.GetType().GetProperties();
-
+            
             foreach (var propertyInfo in propertyInfos)
             {
-                if (identityFields.Contains(propertyInfo.Name))
-                {
-                    continue;
-                }
-
-                if (SkipProperty(propertyInfo))
-                {
-                    continue;
-                }
-
                 fields += propertyInfo.Name + ", ";
                 parameters += "@" + propertyInfo.Name + ", ";
             }
@@ -222,34 +225,6 @@ namespace DevelopmentInProgress.DipMapper
             parameters = parameters.Remove(parameters.Length - 2, 2);
 
             return " (" + fields + ") VALUES (" + parameters + ")";
-        }
-
-        internal static bool SkipProperty(PropertyInfo propertyInfo)
-        {
-            // Skip non-public properties and properties that are either 
-            // classes (but not strings), interfaces, lists, generic 
-            // lists or arrays.
-            var propertyType = propertyInfo.PropertyType;
-            if (propertyType.IsNotPublic)
-            {
-                return true;
-            }
-
-            if (propertyType != typeof(string)
-                && (propertyType.IsClass
-                    || propertyType.IsInterface
-                    || propertyType.IsArray
-                    || propertyType.GetInterfaces()
-                        .Any(
-                            i =>
-                                (i.GetTypeInfo().Name.Equals(typeof(IEnumerable).Name)
-                                 || (i.IsGenericType &&
-                                     i.GetGenericTypeDefinition().Name.Equals(typeof(IEnumerable<>).Name))))))
-            {
-                return true;
-            }
-
-            return false;
         }
 
         private static string GetSqlWhereAssignment(object value)
@@ -301,6 +276,34 @@ namespace DevelopmentInProgress.DipMapper
         //    }
         //}
 
+        internal static bool SkipProperty(PropertyInfo propertyInfo)
+        {
+            // Skip non-public properties and properties that are either 
+            // classes (but not strings), interfaces, lists, generic 
+            // lists or arrays.
+            var propertyType = propertyInfo.PropertyType;
+            if (propertyType.IsNotPublic)
+            {
+                return true;
+            }
+
+            if (propertyType != typeof(string)
+                && (propertyType.IsClass
+                    || propertyType.IsInterface
+                    || propertyType.IsArray
+                    || propertyType.GetInterfaces()
+                        .Any(
+                            i =>
+                                (i.GetTypeInfo().Name.Equals(typeof(IEnumerable).Name)
+                                 || (i.IsGenericType &&
+                                     i.GetGenericTypeDefinition().Name.Equals(typeof(IEnumerable<>).Name))))))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         private static T CreateNew<T>()
         {
             return Activator.CreateInstance<T>();
@@ -338,20 +341,5 @@ namespace DevelopmentInProgress.DipMapper
 
             return sqlCommand;
         }
-
-        //private static string GetCommandText<T>(CommandType commandType, Dictionary<string, object> paramaters)
-        //{
-        //    if (commandType == CommandType.StoredProcedure)
-        //    {
-        //        return GetStoredProcedureParameters(paramaters);
-        //    }
-
-        //    return GetSelectSql<T>() + GetWhereSql(paramaters);
-        //}
-
-        //private static string GetStoredProcedureParameters(Dictionary<string, object> paramaters)
-        //{
-        //    throw new NotImplementedException();
-        //}
     }
 }
