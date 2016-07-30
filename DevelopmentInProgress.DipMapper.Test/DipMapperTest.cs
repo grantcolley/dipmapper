@@ -70,6 +70,36 @@ namespace DevelopmentInProgress.DipMapper.Test
         }
 
         [TestMethod]
+        public void DipMapper_GetPropertyInfos_Test()
+        {
+            // Arrange
+
+            // Act
+
+            // Assert
+        }
+
+        [TestMethod]
+        public void DipMapper_IgnoreProperty_Test()
+        {
+            // Arrange
+
+            // Act
+
+            // Assert
+        }
+
+        [TestMethod]
+        public void DipMapper_SkipProperty_Test()
+        {
+            // Arrange
+
+            // Act
+
+            // Assert
+        }
+
+        [TestMethod]
         public void DipMapper_GetTableName_Test()
         {
             // Arrange
@@ -89,11 +119,14 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void DipMapper_GetFields_ForSelect_Test()
         {
             // Arrange
+            var activityPropertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Activity>>();
+            var genericActivityInt32PropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Int32>>();
 
             // Act
-            var sqlActivity = DipMapper.GetSqlSelectFields<Activity>();
-            var sqlGenericActivity = DipMapper.GetSqlSelectFields<GenericActivity<Activity>>();
-            var sqlGenericActivityInt32 = DipMapper.GetSqlSelectFields<GenericActivity<Int32>>();
+            var sqlActivity = DipMapper.GetSqlSelectFields(activityPropertyInfos);
+            var sqlGenericActivity = DipMapper.GetSqlSelectFields(genericActivityPropertyInfos);
+            var sqlGenericActivityInt32 = DipMapper.GetSqlSelectFields(genericActivityInt32PropertyInfos);
             
             // Assert
             Assert.AreEqual(sqlActivity, "Id, Name, Level, IsActive, Created, Updated, ActivityType");
@@ -106,11 +139,14 @@ namespace DevelopmentInProgress.DipMapper.Test
         {
             // Arrange
             var ignoreId = new List<string>() { "Id" };
+            var activityPropertyInfos = DipMapper.GetPropertyInfos<Activity>(ignoreId);
+            var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Activity>>(ignoreId);
+            var genericActivityInt32PropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Int32>>(ignoreId);
 
             // Act
-            var sqlEmail = DipMapper.GetSqlUpdateFields<Activity>(email, ignoreId);
-            var sqlGenericWrite = DipMapper.GetSqlUpdateFields<GenericActivity<Activity>>(genericWrite, ignoreId);
-            var sqlGenericEmail = DipMapper.GetSqlUpdateFields<GenericActivity<Int32>>(genericEmail, ignoreId);
+            var sqlEmail = DipMapper.GetSqlUpdateFields(activityPropertyInfos);
+            var sqlGenericWrite = DipMapper.GetSqlUpdateFields(genericActivityPropertyInfos);
+            var sqlGenericEmail = DipMapper.GetSqlUpdateFields(genericActivityInt32PropertyInfos);
 
             // Assert
             Assert.AreEqual(sqlEmail, "Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType");
@@ -143,11 +179,14 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void DipMapper_GetSqlSelect_Test()
         {
             // Arrange
+            var activityPropertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Activity>>();
+            var genericActivityInt32PropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Int32>>();
 
             // Act
-            var sqlSelect = DipMapper.GetSqlSelect<Activity>();
-            var sqlSelectGeneric = DipMapper.GetSqlSelect<GenericActivity<Activity>>();
-            var sqlSelectGenericInt32 = DipMapper.GetSqlSelect<GenericActivity<Int32>>();
+            var sqlSelect = DipMapper.GetSqlSelect<Activity>(activityPropertyInfos);
+            var sqlSelectGeneric = DipMapper.GetSqlSelect<GenericActivity<Activity>>(genericActivityPropertyInfos);
+            var sqlSelectGenericInt32 = DipMapper.GetSqlSelect<GenericActivity<Int32>>(genericActivityInt32PropertyInfos);
 
             // Assert
             Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity;");
@@ -159,6 +198,10 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void DipMapper_GetSqlSelect_Where_Test()
         {
             // Arrange
+            var activityPropertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Activity>>();
+            var genericActivityInt32PropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Int32>>();
+
             var parametersActivity = new Dictionary<string, object>();
             parametersActivity.Add("Id", email.Id);
 
@@ -169,9 +212,9 @@ namespace DevelopmentInProgress.DipMapper.Test
             parametersGenericActivityInt32.Add("Id", genericEmail.Id);
 
             // Act
-            var sqlSelect = DipMapper.GetSqlSelect<Activity>(parametersActivity);
-            var sqlSelectGeneric = DipMapper.GetSqlSelect<GenericActivity<Activity>>(parametersGenericActivity);
-            var sqlSelectGenericInt32 = DipMapper.GetSqlSelect<GenericActivity<Int32>>(parametersGenericActivityInt32);
+            var sqlSelect = DipMapper.GetSqlSelect<Activity>(activityPropertyInfos, parametersActivity);
+            var sqlSelectGeneric = DipMapper.GetSqlSelect<GenericActivity<Activity>>(genericActivityPropertyInfos, parametersGenericActivity);
+            var sqlSelectGenericInt32 = DipMapper.GetSqlSelect<GenericActivity<Int32>>(genericActivityInt32PropertyInfos, parametersGenericActivityInt32);
 
             // Assert
             Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@Id;");
@@ -183,11 +226,14 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void DipMapper_GetSqlInsert_Test()
         {
             // Arrange
+            var activityPropertyInfos = DipMapper.GetPropertyInfos<Activity>(new[] { "Id" });
+            var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Activity>>(new[] { "Id" });
+            var genericActivityInt32PropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Int32>>(new[] { "Id" });
 
             // Act
-            var sqlInsertEmail = DipMapper.GetSqlInsert<Activity>(email, new [] {"Id"});
-            var sqlInsertGenericWrite = DipMapper.GetSqlInsert<GenericActivity<Activity>>(genericWrite, new [] { "Id" });
-            var sqlInsertGenericEmail = DipMapper.GetSqlInsert<GenericActivity<Int32>>(genericEmail, new [] { "Id" });
+            var sqlInsertEmail = DipMapper.GetSqlInsert<Activity>(activityPropertyInfos);
+            var sqlInsertGenericWrite = DipMapper.GetSqlInsert<GenericActivity<Activity>>(genericActivityPropertyInfos);
+            var sqlInsertGenericEmail = DipMapper.GetSqlInsert<GenericActivity<Int32>>(genericActivityInt32PropertyInfos);
 
             // Assert
             Assert.AreEqual(sqlInsertEmail, "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);");
@@ -208,10 +254,14 @@ namespace DevelopmentInProgress.DipMapper.Test
             var parametersGenericActivityInt32 = new Dictionary<string, object>();
             parametersGenericActivityInt32.Add("Id", genericEmail.Id);
 
+            var activityPropertyInfos = DipMapper.GetPropertyInfos<Activity>(parametersActivity.Keys);
+            var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Activity>>(parametersGenericActivity.Keys);
+            var genericActivityInt32PropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Int32>>(parametersGenericActivityInt32.Keys);
+
             // Act
-            var sqlUpdateEmail = DipMapper.GetSqlUpdate<Activity>(email, parametersActivity);
-            var sqlUpdateGenericWrite = DipMapper.GetSqlUpdate<GenericActivity<Activity>>(genericWrite, parametersGenericActivity);
-            var sqlUpdateGenericEmail = DipMapper.GetSqlUpdate<GenericActivity<Int32>>(genericEmail, parametersGenericActivityInt32);
+            var sqlUpdateEmail = DipMapper.GetSqlUpdate<Activity>(activityPropertyInfos, parametersActivity);
+            var sqlUpdateGenericWrite = DipMapper.GetSqlUpdate<GenericActivity<Activity>>(genericActivityPropertyInfos, parametersGenericActivity);
+            var sqlUpdateGenericEmail = DipMapper.GetSqlUpdate<GenericActivity<Int32>>(genericActivityInt32PropertyInfos, parametersGenericActivityInt32);
 
             // Assert
             Assert.AreEqual(sqlUpdateEmail, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@Id;");
