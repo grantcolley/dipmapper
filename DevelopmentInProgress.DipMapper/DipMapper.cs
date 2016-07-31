@@ -1,9 +1,11 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Net.Mail;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -37,7 +39,19 @@ namespace DevelopmentInProgress.DipMapper
                     while (reader.Read())
                     {
                         var t = CreateNew<T>();
+                        for (int i = 0; i < reader.FieldCount + 1; i ++)
+                        {
+                            var propertyInfo = propertyInfos.FirstOrDefault(p => p.Name == reader.GetName(i));
+                            if (propertyInfo == null)
+                            {
+                                throw new Exception("DipMapper exception : Unable to map field " + reader.GetName(i) +
+                                                    " to object " + t.GetType().Name);
+                            }
 
+                            propertyInfo.SetValue(t, reader[i]);
+                        }
+
+                        result.Add(t);
                     }
 
                     reader.Close();
@@ -145,7 +159,7 @@ namespace DevelopmentInProgress.DipMapper
             return where;
         }
 
-        internal static IList<PropertyInfo> GetPropertyInfos<T>(IEnumerable<string> ignore = null)
+        internal static IEnumerable<PropertyInfo> GetPropertyInfos<T>(IEnumerable<string> ignore = null)
         {
             if (ignore == null)
             {
