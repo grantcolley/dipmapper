@@ -17,7 +17,7 @@ namespace DevelopmentInProgress.DipMapper
     {
         public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null) where T : new()
         {
-            return Select<T>(conn, parameters).FirstOrDefault();
+            return Select<T>(conn, parameters).Single();
         }
 
         public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null) where T : new()
@@ -39,7 +39,7 @@ namespace DevelopmentInProgress.DipMapper
                     while (reader.Read())
                     {
                         var t = CreateNew<T>();
-                        for (int i = 0; i < reader.FieldCount + 1; i ++)
+                        for (int i = 0; i < reader.FieldCount; i ++)
                         {
                             var propertyInfo = propertyInfos.FirstOrDefault(p => p.Name == reader.GetName(i));
                             if (propertyInfo == null)
@@ -58,10 +58,13 @@ namespace DevelopmentInProgress.DipMapper
                 }
                 finally
                 {
-                    if (reader != null
-                        && !reader.IsClosed)
+                    if (reader != null)
                     {
-                        reader.Close();
+                        if (!reader.IsClosed)
+                        {
+                            reader.Close();
+                        }
+
                         reader.Dispose();
                     }
 
