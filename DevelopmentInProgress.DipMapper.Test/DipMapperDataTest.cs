@@ -26,13 +26,13 @@ namespace DevelopmentInProgress.DipMapper.Test
             var activity = conn.Single<Activity>(parameters);
 
             // Assert
-            Assert.AreEqual(activity.Id, 6);
+            Assert.AreEqual(activity.Id, 1);
             Assert.AreEqual(activity.Name, "Email");
             Assert.AreEqual(activity.Level, 3);
             Assert.AreEqual(activity.IsActive, true);
             Assert.AreEqual(activity.Created, new DateTime(2016, 08, 01));
             Assert.AreEqual(activity.Updated, new DateTime(2016, 08, 01));
-            Assert.AreEqual(activity.ActivityType, 1);
+            Assert.AreEqual(activity.ActivityType, ActivityTypeEnum.Private);
         }
     }
 }
