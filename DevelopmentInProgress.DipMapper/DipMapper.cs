@@ -1,11 +1,9 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Net.Mail;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -17,7 +15,7 @@ namespace DevelopmentInProgress.DipMapper
     {
         public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null) where T : new()
         {
-            return Select<T>(conn, parameters).Single();
+            return Select<T>(conn, parameters).SingleOrDefault();
         }
 
         public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null) where T : new()
@@ -53,8 +51,6 @@ namespace DevelopmentInProgress.DipMapper
 
                         result.Add(t);
                     }
-
-                    reader.Close();
                 }
                 finally
                 {
@@ -96,6 +92,25 @@ namespace DevelopmentInProgress.DipMapper
 
             var propertyInfos = GetPropertyInfos<T>(ignore);
             var sql = GetSqlUpdate<T>(propertyInfos, parameters);
+
+            using (conn)
+            {
+                try
+                {
+                    var command = GetCommand(conn, sql, parameters);
+                    OpenConnection(conn);
+
+                    command.ExecuteNonQuery();
+                }
+                finally 
+                {
+                    if (conn.State != ConnectionState.Closed)
+                    {
+                        conn.Close();
+                    }
+                }
+            }
+
             OpenConnection(conn);
             throw new NotImplementedException();
         }
@@ -351,9 +366,13 @@ namespace DevelopmentInProgress.DipMapper
         private static SqlCommand GetSqlCommand(SqlConnection conn, string queryString, Dictionary<string, object> parameters)
         {
             var sqlCommand = new SqlCommand(queryString, conn);
-            foreach (var kvp in parameters)
+
+            if (parameters != null)
             {
-                sqlCommand.Parameters.AddWithValue(kvp.Key, kvp.Value);
+                foreach (var kvp in parameters)
+                {
+                    sqlCommand.Parameters.AddWithValue(kvp.Key, kvp.Value);
+                }
             }
 
             return sqlCommand;
