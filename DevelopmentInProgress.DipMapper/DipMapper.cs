@@ -74,32 +74,44 @@ namespace DevelopmentInProgress.DipMapper
             return result;
         }
 
-        public static T Insert<T>(this IDbConnection conn, T target, IEnumerable<string> skipOnCreateFields = null)
+        public static int Insert<T>(this IDbConnection conn, T target, IEnumerable<string> skipOnCreateFields = null)
         {
+            int id;
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(propertyInfos, skipOnCreateFields);
-            OpenConnection(conn);
-            throw new NotImplementedException();
-        }
-
-        public static void Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null)
-        {
-            IEnumerable<string> ignore = null;
-            if (parameters != null)
-            {
-                ignore = parameters.Keys;
-            }
-
-            var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlUpdate<T>(propertyInfos, parameters);
-
-            // todo: update parameters list with properies and values from target...
+            var extendedParameters = GetExtendedParameters(target, propertyInfos);
 
             using (conn)
             {
                 try
                 {
-                    var command = GetCommand(conn, sql, parameters);
+                    var command = GetCommand(conn, sql, extendedParameters);
+                    OpenConnection(conn);
+                    id = (int)command.ExecuteScalar();
+                }
+                finally
+                {
+                    if (conn.State != ConnectionState.Closed)
+                    {
+                        conn.Close();
+                    }
+                }
+            }
+
+            return id;
+        }
+
+        public static void Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null)
+        {
+            var propertyInfos = GetPropertyInfos<T>();
+            var sql = GetSqlUpdate<T>(propertyInfos, parameters, skipOnUpdateFields);
+            var extendedParameters = GetExtendedParameters(target, propertyInfos, parameters);
+
+            using (conn)
+            {
+                try
+                {
+                    var command = GetCommand(conn, sql, extendedParameters);
                     OpenConnection(conn);
                     command.ExecuteNonQuery();
                 }
@@ -357,6 +369,40 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             return false;
+        }
+
+        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters = null)
+        {
+            var extendedParameters = new Dictionary<string, object>();
+            for (int i = 0; i < propertyInfos.Count(); i++)
+            {
+                var propertyInfo = propertyInfos.ElementAt(i);
+                var val = propertyInfo.GetValue(target);
+                extendedParameters.Add("@" + propertyInfo.Name, val);
+            }
+
+            if (parameters == null)
+            {
+                return extendedParameters;
+            }
+
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                string parameterName;
+                var parameter = parameters.ElementAt(i);
+                if (extendedParameters.ContainsKey("@" + parameter.Key))
+                {
+                    parameterName = "@" + parameter.Key;
+                }
+                else
+                {
+                    parameterName = "@" + parameter.Key + "1";
+                }
+
+                extendedParameters.Add(parameterName, parameter.Value);
+            }
+
+            return extendedParameters;
         }
 
         private static T CreateNew<T>()
