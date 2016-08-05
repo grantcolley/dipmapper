@@ -100,6 +100,16 @@ namespace DevelopmentInProgress.DipMapper.Test
         }
 
         [TestMethod]
+        public void DipMapper_GetExtendedParameters_Test()
+        {
+            // Arrange
+
+            // Act
+
+            // Assert
+        }
+
+        [TestMethod]
         public void DipMapper_GetTableName_Test()
         {
             // Arrange
