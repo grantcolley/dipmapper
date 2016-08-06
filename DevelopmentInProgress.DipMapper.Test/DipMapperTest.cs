@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DevelopmentInProgress.DipMapper.Test
@@ -241,10 +242,12 @@ namespace DevelopmentInProgress.DipMapper.Test
             var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Activity>>();
             var genericActivityInt32PropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Int32>>();
 
+            var connType = DipMapper.GetConnType(new SqlConnection());
+
             // Act
-            var sqlInsertEmail = DipMapper.GetSqlInsert<Activity>(activityPropertyInfos, ignoreId);
-            var sqlInsertGenericWrite = DipMapper.GetSqlInsert<GenericActivity<Activity>>(genericActivityPropertyInfos, ignoreId);
-            var sqlInsertGenericEmail = DipMapper.GetSqlInsert<GenericActivity<Int32>>(genericActivityInt32PropertyInfos, ignoreId);
+            var sqlInsertEmail = DipMapper.GetSqlInsert<Activity>(connType, activityPropertyInfos, "Id");
+            var sqlInsertGenericWrite = DipMapper.GetSqlInsert<GenericActivity<Activity>>(connType, genericActivityPropertyInfos, "Id");
+            var sqlInsertGenericEmail = DipMapper.GetSqlInsert<GenericActivity<Int32>>(connType, genericActivityInt32PropertyInfos, "Id");
 
             // Assert
             Assert.AreEqual(sqlInsertEmail, "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);");
