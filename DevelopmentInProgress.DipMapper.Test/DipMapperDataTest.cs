@@ -123,5 +123,68 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Assert
             Assert.AreEqual(activities.Count(), 0);
         }
+
+        [TestMethod]
+        public void DipMapper_Database_Test()
+        {
+            // Arrange
+            var read = new Activity()
+            {
+                Name = "Read",
+                Level = 1,
+                IsActive = true,
+                Created = DateTime.Today,
+                Updated = DateTime.Today,
+                ActivityType = ActivityTypeEnum.Shared,
+            };
+
+            var write = new Activity()
+            {
+                Name = "Write",
+                Level = 2,
+                IsActive = true,
+                Created = DateTime.Today.AddDays(1),
+                Updated = DateTime.Today.AddDays(1),
+                ActivityType = ActivityTypeEnum.Private,
+            };
+
+            var email = new Activity()
+            {
+                Name = "Email",
+                Level = 3,
+                IsActive = true,
+                Created = DateTime.Today.AddDays(2),
+                Updated = null,
+                ActivityType = ActivityTypeEnum.Public,
+            };
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                // Test Insert
+                // Act 
+                read = conn.Insert<Activity>(read, "Id");
+                write = conn.Insert<Activity>(write, "Id");
+                email = conn.Insert<Activity>(email, "Id");
+
+                // Assert
+                Assert.AreEqual(read.Id, 1);
+                Assert.AreEqual(write.Id, 2);
+                Assert.AreEqual(email.Id, 3);
+
+                // Select single
+
+                // Select many
+
+                // Select none
+
+                // Update single
+
+                // Update many
+
+                // Delete single
+
+                // Delete many
+            }
+        }
     }
 }

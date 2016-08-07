@@ -233,27 +233,27 @@ namespace DevelopmentInProgress.DipMapper.Test
             Assert.AreEqual(sqlSelectGenericInt32, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=@Id;");
         }
 
-        [TestMethod]
-        public void DipMapper_GetSqlInsert_Test()
-        {
-            // Arrange
-            var ignoreId = new List<string>() { "Id" };
-            var activityPropertyInfos = DipMapper.GetPropertyInfos<Activity>();
-            var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Activity>>();
-            var genericActivityInt32PropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Int32>>();
+        //[TestMethod]
+        //public void DipMapper_GetSqlInsert_Test()
+        //{
+        //    // Arrange
+        //    var ignoreId = new List<string>() { "Id" };
+        //    var activityPropertyInfos = DipMapper.GetPropertyInfos<Activity>();
+        //    var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Activity>>();
+        //    var genericActivityInt32PropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<Int32>>();
 
-            var connType = DipMapper.GetConnType(new SqlConnection());
+        //    var connType = DipMapper.GetConnType(new SqlConnection());
 
-            // Act
-            var sqlInsertEmail = DipMapper.GetSqlInsert<Activity>(connType, activityPropertyInfos, "Id");
-            var sqlInsertGenericWrite = DipMapper.GetSqlInsert<GenericActivity<Activity>>(connType, genericActivityPropertyInfos, "Id");
-            var sqlInsertGenericEmail = DipMapper.GetSqlInsert<GenericActivity<Int32>>(connType, genericActivityInt32PropertyInfos, "Id");
+        //    // Act
+        //    var sqlInsertEmail = DipMapper.GetSqlInsert<Activity>(connType, activityPropertyInfos, "Id");
+        //    var sqlInsertGenericWrite = DipMapper.GetSqlInsert<GenericActivity<Activity>>(connType, genericActivityPropertyInfos, "Id");
+        //    var sqlInsertGenericEmail = DipMapper.GetSqlInsert<GenericActivity<Int32>>(connType, genericActivityInt32PropertyInfos, "Id");
 
-            // Assert
-            Assert.AreEqual(sqlInsertEmail, "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);");
-            Assert.AreEqual(sqlInsertGenericWrite, "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);");
-            Assert.AreEqual(sqlInsertGenericEmail, "INSERT INTO Int32 (Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType, @GenericProperty);");
-        }
+        //    // Assert
+        //    Assert.AreEqual(sqlInsertEmail, "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);");
+        //    Assert.AreEqual(sqlInsertGenericWrite, "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);");
+        //    Assert.AreEqual(sqlInsertGenericEmail, "INSERT INTO Int32 (Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType, @GenericProperty);");
+        //}
 
         [TestMethod]
         public void DipMapper_GetSqlUpdate_Test()

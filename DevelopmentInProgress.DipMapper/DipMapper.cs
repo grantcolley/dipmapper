@@ -19,52 +19,66 @@ namespace DevelopmentInProgress.DipMapper
             OleDb
         }
 
-        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null) where T : new()
+        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, bool closeConnection = false) where T : new()
         {
-            return Select<T>(conn, parameters).SingleOrDefault();
+            return Select<T>(conn, parameters, closeConnection).SingleOrDefault();
         }
 
-        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null) where T : new()
+        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, bool closeConnection = false) where T : new()
         {
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlSelect<T>(propertyInfos, parameters);
-            var results = ExecuteReader<T>(conn, sql, propertyInfos, parameters);
+            var results = ExecuteReader<T>(conn, sql, propertyInfos, parameters, closeConnection);
             return results;
         }
 
-        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null)
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, bool closeConnection = false)
         {
+            if (skipOnCreateFields == null)
+            {
+                skipOnCreateFields = new List<string>();
+            }
+
+            if (!string.IsNullOrWhiteSpace(identityField)
+                && !skipOnCreateFields.Contains(identityField))
+            {
+                ((IList) skipOnCreateFields).Add(identityField);
+            }
+
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, skipOnCreateFields);
-            var extendedParameters = GetExtendedParameters(target, propertyInfos);
-            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters).Single();
+            var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnCreateFields);
+            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, closeConnection).Single();
             return result;
         }
 
-        public static void Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null)
+        public static void Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, bool closeConnection = false)
         {
+            if (skipOnUpdateFields == null)
+            {
+                skipOnUpdateFields = new List<string>();
+            }
+
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlUpdate<T>(propertyInfos, parameters, skipOnUpdateFields);
-            var extendedParameters = GetExtendedParameters(target, propertyInfos, parameters);
-            ExecuteNonQuery(conn, sql, extendedParameters);
+            var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnUpdateFields, parameters);
+            ExecuteNonQuery(conn, sql, extendedParameters, closeConnection);
         }
 
-        public static void Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null)
+        public static void Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, bool closeConnection = false)
         {
             var sql = GetSqlDelete<T>(parameters);
-            ExecuteNonQuery(conn, sql, parameters);
+            ExecuteNonQuery(conn, sql, parameters, closeConnection);
         }
 
         public static T ExecuteScalar<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect, string sql = "")
         {
-            OpenConnection(conn);
             throw new NotImplementedException();
         }
 
         public static IEnumerable<T> Execute<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect, string sql = "")
         {
-            OpenConnection(conn);
             throw new NotImplementedException();
         }
 
@@ -77,7 +91,7 @@ namespace DevelopmentInProgress.DipMapper
         {
             return "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields(propertyInfos, skipOnCreateFields) + ";" +
                    "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " +
-                   identityField + " = " + GetIdentitySql(connType);
+                   identityField + " = " + GetIdentitySql(connType) + ";";
         }
 
         internal static string GetSqlUpdate<T>(IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, IEnumerable<string> skipOnUpdateFields = null)
@@ -120,7 +134,7 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var propertyInfo in propertyInfos)
             {
-                if (SkipProperty(propertyInfo))
+                if (UnsupportedProperty(propertyInfo))
                 {
                     continue;
                 }
@@ -155,14 +169,9 @@ namespace DevelopmentInProgress.DipMapper
             return fields;
         }
 
-        internal static string GetSqlUpdateFields(IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnUpdateFields = null)
+        internal static string GetSqlUpdateFields(IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnUpdateFields)
         {
             string fields = string.Empty;
-
-            if (skipOnUpdateFields == null)
-            {
-                skipOnUpdateFields = new List<string>();
-            }
 
             foreach (var propertyInfo in propertyInfos)
             {
@@ -178,15 +187,10 @@ namespace DevelopmentInProgress.DipMapper
             return fields;
         }
 
-        internal static string GetSqlInsertFields(IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields = null)
+        internal static string GetSqlInsertFields(IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields)
         {
             string fields = string.Empty;
             string parameters = string.Empty;
-
-            if (skipOnCreateFields == null)
-            {
-                skipOnCreateFields = new List<string>();
-            }
 
             foreach (var propertyInfo in propertyInfos)
             {
@@ -226,7 +230,7 @@ namespace DevelopmentInProgress.DipMapper
             switch (connType)
             {
                 case ConnType.MSSQL:
-                    return "SCOPE_IDENT()";
+                    return "SCOPE_IDENTITY()";
             }
 
             throw new NotImplementedException("Connection " + connType.GetType().Name + " not supported.");
@@ -265,7 +269,7 @@ namespace DevelopmentInProgress.DipMapper
         //    }
         //}
 
-        internal static bool SkipProperty(PropertyInfo propertyInfo)
+        internal static bool UnsupportedProperty(PropertyInfo propertyInfo)
         {
             // Skip non-public properties and properties that are either 
             // classes (but not strings), interfaces, lists, generic 
@@ -293,14 +297,20 @@ namespace DevelopmentInProgress.DipMapper
             return false;
         }
 
-        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters = null)
+        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields, Dictionary<string, object> parameters = null)
         {
             var extendedParameters = new Dictionary<string, object>();
             for (int i = 0; i < propertyInfos.Count(); i++)
             {
                 var propertyInfo = propertyInfos.ElementAt(i);
+
+                if (skipFields.Contains(propertyInfo.Name))
+                {
+                    continue;
+                }
+
                 var val = propertyInfo.GetValue(target);
-                extendedParameters.Add("@" + propertyInfo.Name, val);
+                extendedParameters.Add("@" + propertyInfo.Name, val ?? DBNull.Value);
             }
 
             if (parameters == null)
@@ -321,7 +331,7 @@ namespace DevelopmentInProgress.DipMapper
                     parameterName = "@" + parameter.Key + "1";
                 }
 
-                extendedParameters.Add(parameterName, parameter.Value);
+                extendedParameters.Add(parameterName, parameter.Value ?? DBNull.Value);
             }
 
             return extendedParameters;
@@ -332,18 +342,6 @@ namespace DevelopmentInProgress.DipMapper
             return Activator.CreateInstance<T>();
         }
 
-        private static void OpenConnection(IDbConnection conn)
-        {
-            if (conn.State == ConnectionState.Closed)
-            {
-                conn.Open();
-            }
-            else if (conn.State != ConnectionState.Open)
-            {
-                throw new Exception("Unable to open connection. ConnectionState=" + conn.State);
-            }
-        }
-
         internal static ConnType GetConnType(IDbConnection conn)
         {
             if (conn is SqlConnection)
@@ -352,6 +350,14 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             throw new NotImplementedException("Connection " + conn.GetType().Name + " not supported.");
+        }
+
+        private static void OpenConnection(IDbConnection conn)
+        {
+            if (conn.State == ConnectionState.Closed)
+            {
+                conn.Open();
+            }
         }
 
         private static IDbCommand GetCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters)
@@ -379,62 +385,60 @@ namespace DevelopmentInProgress.DipMapper
             return sqlCommand;
         }
 
-        private static void ExecuteNonQuery(IDbConnection conn, string sql, Dictionary<string, object> parameters)
+        private static void ExecuteNonQuery(IDbConnection conn, string sql, Dictionary<string, object> parameters,
+            bool closeConnection)
         {
-            using (conn)
+            try
             {
-                try
+                var command = GetCommand(conn, sql, parameters);
+                OpenConnection(conn);
+                command.ExecuteNonQuery();
+            }
+            finally
+            {
+                if (closeConnection
+                    && conn.State != ConnectionState.Closed)
                 {
-                    var command = GetCommand(conn, sql, parameters);
-                    OpenConnection(conn);
-                    command.ExecuteNonQuery();
-                }
-                finally
-                {
-                    if (conn.State != ConnectionState.Closed)
-                    {
-                        conn.Close();
-                    }
+                    conn.Close();
                 }
             }
         }
 
-        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters)
+        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql,
+            IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, bool closeConnection)
         {
             var result = new List<T>();
 
-            using (conn)
+            IDataReader reader = null;
+
+            try
             {
-                IDataReader reader = null;
+                var command = GetCommand(conn, sql, parameters);
+                OpenConnection(conn);
+                reader = command.ExecuteReader();
 
-                try
+                while (reader.Read())
                 {
-                    var command = GetCommand(conn, sql, parameters);
-                    OpenConnection(conn);
-
-                    reader = command.ExecuteReader();
-                    while (reader.Read())
-                    {
-                        var t = ReadData<T>(reader, propertyInfos);
-                        result.Add(t);
-                    }
+                    var t = ReadData<T>(reader, propertyInfos);
+                    result.Add(t);
                 }
-                finally
+            }
+            finally
+            {
+                if (reader != null)
                 {
-                    if (reader != null)
+                    if (!reader.IsClosed)
                     {
-                        if (!reader.IsClosed)
-                        {
-                            reader.Close();
-                        }
-
-                        reader.Dispose();
+                        reader.Close();
                     }
 
-                    if (conn.State != ConnectionState.Closed)
-                    {
-                        conn.Close();
-                    }
+                    reader.Dispose();
+                }
+
+                if (closeConnection
+                    && conn.State != ConnectionState.Closed)
+                {
+                    conn.Close();
                 }
             }
 
@@ -453,7 +457,7 @@ namespace DevelopmentInProgress.DipMapper
                                         " to object " + t.GetType().Name);
                 }
 
-                propertyInfo.SetValue(t, reader[i]);
+                propertyInfo.SetValue(t, reader[i] == DBNull.Value ? null : reader[i]);
             }
 
             return t;
