@@ -152,7 +152,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             {
                 Name = "Email",
                 Level = 3,
-                IsActive = true,
+                IsActive = false,
                 Created = DateTime.Today.AddDays(2),
                 Updated = null,
                 ActivityType = ActivityTypeEnum.Public,
@@ -160,7 +160,7 @@ namespace DevelopmentInProgress.DipMapper.Test
 
             using (var conn = new SqlConnection(connectionString))
             {
-                // Test Insert
+                // Test Insert /////////////////////////////////////
                 // Act 
                 read = conn.Insert<Activity>(read, "Id");
                 write = conn.Insert<Activity>(write, "Id");
@@ -168,14 +168,48 @@ namespace DevelopmentInProgress.DipMapper.Test
 
                 // Assert
                 Assert.AreEqual(read.Id, 1);
+                Assert.AreEqual(read.Name, "Read");
                 Assert.AreEqual(write.Id, 2);
+                Assert.AreEqual(write.Name, "Write");
                 Assert.AreEqual(email.Id, 3);
+                Assert.AreEqual(email.Name, "Email");
+                ////////////////////////////////////////////////////
 
-                // Select single
+                // Test Select Single //////////////////////////////
+                // Act
+                var activity = conn.Single<Activity>(new Dictionary<string, object>() {{"Id", 2}});
 
-                // Select many
+                // Assert
+                Assert.AreEqual(activity.Name, "Write");
+                ////////////////////////////////////////////////////
+                
+                // Test Select Many ////////////////////////////////
+                // Act
+                var activities = conn.Select<Activity>(new Dictionary<string, object>() {{"IsActive", true}});
 
-                // Select none
+                // Assert
+                Assert.AreEqual(activities.Count(), 2);
+                Assert.AreEqual(activities.ElementAt(0).Id, 1);
+                Assert.AreEqual(activities.ElementAt(0).Name, "Read");
+                Assert.AreEqual(activities.ElementAt(1).Id, 2);
+                Assert.AreEqual(activities.ElementAt(1).Name, "Write");
+                ////////////////////////////////////////////////////
+
+                // Single return none //////////////////////////////
+                // Act
+                var admin = conn.Single<Activity>(new Dictionary<string, object>() {{"Id", 1000}});
+                
+                // Assert
+                Assert.IsNull(admin);
+                ////////////////////////////////////////////////////
+
+                // Select return none //////////////////////////////
+                // Act
+                var internals = conn.Select<Activity>(new Dictionary<string, object>() {{"ActivityType", 100}});
+
+                // Assert
+                Assert.AreEqual(internals.Count(), 0);
+                ////////////////////////////////////////////////////
 
                 // Update single
 
