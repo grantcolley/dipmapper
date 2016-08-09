@@ -28,7 +28,8 @@ namespace DevelopmentInProgress.DipMapper
         {
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlSelect<T>(propertyInfos, parameters);
-            var results = ExecuteReader<T>(conn, sql, propertyInfos, parameters, closeConnection);
+            var extendedParameters = GetExtendedParameters<T>(parameters);
+            var results = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, closeConnection);
             return results;
         }
 
@@ -116,7 +117,7 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var parameter in parameters)
             {
-                where += parameter.Key + GetSqlWhereAssignment(parameter.Value) + "@" + parameter.Key + " AND ";
+                where += parameter.Key + GetSqlWhereAssignment(parameter.Value) + "@_" + parameter.Key + " AND ";
             }
 
             if (where.EndsWith(" AND "))
@@ -297,20 +298,32 @@ namespace DevelopmentInProgress.DipMapper
             return false;
         }
 
-        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields, Dictionary<string, object> parameters = null)
+        internal static Dictionary<string, object> GetExtendedParameters<T>(Dictionary<string, object> parameters = null)
+        {
+            return GetExtendedParameters<T>(default(T), null, null, parameters);
+        }
+
+        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields)
+        {
+            return GetExtendedParameters<T>(target, propertyInfos, skipFields, null);
+        }
+
+        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields, Dictionary<string, object> parameters)
         {
             var extendedParameters = new Dictionary<string, object>();
-            for (int i = 0; i < propertyInfos.Count(); i++)
+
+            if (propertyInfos != null)
             {
-                var propertyInfo = propertyInfos.ElementAt(i);
-
-                if (skipFields.Contains(propertyInfo.Name))
+                foreach (var propertyInfo in propertyInfos)
                 {
-                    continue;
-                }
+                    if (skipFields.Contains(propertyInfo.Name))
+                    {
+                        continue;
+                    }
 
-                var val = propertyInfo.GetValue(target);
-                extendedParameters.Add("@" + propertyInfo.Name, val ?? DBNull.Value);
+                    var val = propertyInfo.GetValue(target);
+                    extendedParameters.Add("@" + propertyInfo.Name, val ?? DBNull.Value);
+                }
             }
 
             if (parameters == null)
@@ -318,20 +331,9 @@ namespace DevelopmentInProgress.DipMapper
                 return extendedParameters;
             }
 
-            for (int i = 0; i < parameters.Count; i++)
+            foreach (var parameter in parameters)
             {
-                string parameterName;
-                var parameter = parameters.ElementAt(i);
-                if (extendedParameters.ContainsKey("@" + parameter.Key))
-                {
-                    parameterName = "@" + parameter.Key;
-                }
-                else
-                {
-                    parameterName = "@" + parameter.Key + "1";
-                }
-
-                extendedParameters.Add(parameterName, parameter.Value ?? DBNull.Value);
+                extendedParameters.Add("@_" + parameter.Key, parameter.Value ?? DBNull.Value);
             }
 
             return extendedParameters;

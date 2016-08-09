@@ -182,7 +182,7 @@ namespace DevelopmentInProgress.DipMapper.Test
                 // Assert
                 Assert.AreEqual(activity.Name, "Write");
                 ////////////////////////////////////////////////////
-                
+
                 // Test Select Many ////////////////////////////////
                 // Act
                 var activities = conn.Select<Activity>(new Dictionary<string, object>() {{"IsActive", true}});
@@ -198,7 +198,7 @@ namespace DevelopmentInProgress.DipMapper.Test
                 // Single return none //////////////////////////////
                 // Act
                 var admin = conn.Single<Activity>(new Dictionary<string, object>() {{"Id", 1000}});
-                
+
                 // Assert
                 Assert.IsNull(admin);
                 ////////////////////////////////////////////////////
@@ -212,6 +212,16 @@ namespace DevelopmentInProgress.DipMapper.Test
                 ////////////////////////////////////////////////////
 
                 // Update single
+                // Arrange
+                read.Name = "Read Only";
+
+                // Act
+                conn.Update(read, new Dictionary<string, object>() {{"Id", 1}}, new[] {"Id"});
+
+                // Assert
+                var readOnly = conn.Single<Activity>(new Dictionary<string, object>() {{"Id", 1}});
+                Assert.AreEqual(readOnly.Name, "Read Only");
+                Assert.AreEqual(readOnly.Id, 1);
 
                 // Update many
 
