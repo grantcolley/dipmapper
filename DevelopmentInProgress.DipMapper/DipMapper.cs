@@ -70,15 +70,16 @@ namespace DevelopmentInProgress.DipMapper
         public static void Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, bool closeConnection = false)
         {
             var sql = GetSqlDelete<T>(parameters);
-            ExecuteNonQuery(conn, sql, parameters, closeConnection);
+            var extendedParameters = GetExtendedParameters<T>(parameters);
+            ExecuteNonQuery(conn, sql, extendedParameters, closeConnection);
         }
 
-        public static T ExecuteScalar<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect, string sql = "")
+        public static T ExecuteScalar<T>(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect)
         {
             throw new NotImplementedException();
         }
 
-        public static IEnumerable<T> Execute<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect, string sql = "")
+        public static IEnumerable<T> ExecuteReader<T>(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect)
         {
             throw new NotImplementedException();
         }
