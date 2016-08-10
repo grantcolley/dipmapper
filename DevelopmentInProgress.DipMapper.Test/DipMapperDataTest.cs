@@ -211,7 +211,7 @@ namespace DevelopmentInProgress.DipMapper.Test
                 Assert.AreEqual(internals.Count(), 0);
                 ////////////////////////////////////////////////////
 
-                // Update single
+                // Update single ///////////////////////////////////
                 // Arrange
                 read.Name = "Read Only";
 
@@ -222,12 +222,37 @@ namespace DevelopmentInProgress.DipMapper.Test
                 var readOnly = conn.Single<Activity>(new Dictionary<string, object>() {{"Id", 1}});
                 Assert.AreEqual(readOnly.Name, "Read Only");
                 Assert.AreEqual(readOnly.Id, 1);
+                ////////////////////////////////////////////////////
 
-                // Update many
+                // Update many /////////////////////////////////////
+                // Arrange 
+                readOnly.IsActive = false;
 
-                // Delete single
+                // Act
+                conn.Update<Activity>(readOnly, null, new[] {"Id"});
 
-                // Delete many
+                // Assert
+                var updated = conn.Select<Activity>(new Dictionary<string, object>() {{"IsActive", false}});
+                Assert.AreEqual(updated.Count(), 3);
+                ////////////////////////////////////////////////////
+
+                // Delete single ///////////////////////////////////
+                // Act
+                conn.Delete<Activity>(new Dictionary<string, object>() {{"Id", 1}});
+
+                // Assert
+                readOnly = conn.Single<Activity>(new Dictionary<string, object>() {{"Id", 1}});
+                Assert.IsNull(readOnly);
+                ////////////////////////////////////////////////////
+
+                // Delete many /////////////////////////////////////
+                // Act
+                conn.Delete<Activity>(new Dictionary<string, object>() {{"IsActive", false}});
+
+                // Assert
+                activities = conn.Select<Activity>();
+                Assert.AreEqual(activities.Count(), 0);
+                ////////////////////////////////////////////////////
             }
         }
     }
