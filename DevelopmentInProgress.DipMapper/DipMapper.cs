@@ -29,7 +29,7 @@ namespace DevelopmentInProgress.DipMapper
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlSelect<T>(propertyInfos, parameters);
             var extendedParameters = GetExtendedParameters<T>(parameters);
-            var results = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, closeConnection);
+            var results = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, closeConnection);
             return results;
         }
 
@@ -50,11 +50,11 @@ namespace DevelopmentInProgress.DipMapper
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, skipOnCreateFields);
             var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnCreateFields);
-            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, closeConnection).Single();
+            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, closeConnection).Single();
             return result;
         }
 
-        public static void Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, bool closeConnection = false)
+        public static int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, bool closeConnection = false)
         {
             if (skipOnUpdateFields == null)
             {
@@ -64,24 +64,65 @@ namespace DevelopmentInProgress.DipMapper
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlUpdate<T>(propertyInfos, parameters, skipOnUpdateFields);
             var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnUpdateFields, parameters);
-            ExecuteNonQuery(conn, sql, extendedParameters, closeConnection);
+            return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, closeConnection);
         }
 
-        public static void Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, bool closeConnection = false)
+        public static int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, bool closeConnection = false)
         {
             var sql = GetSqlDelete<T>(parameters);
             var extendedParameters = GetExtendedParameters<T>(parameters);
-            ExecuteNonQuery(conn, sql, extendedParameters, closeConnection);
+            return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, closeConnection);
         }
 
-        public static T ExecuteScalar<T>(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect)
+        public static int ExecuteNonQuery(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, bool closeConnection = false)
         {
+            try
+            {
+                var command = GetCommand(conn, sql, parameters, commandType);
+                OpenConnection(conn);
+                return command.ExecuteNonQuery();
+            }
+            finally
+            {
+                if (closeConnection
+                    && conn.State != ConnectionState.Closed)
+                {
+                    conn.Close();
+                }
+            }
+        }
+
+        public static T ExecuteScalar<T>(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect, bool closeConnection = false)
+        {
+            //try
+            //{
+            //    var command = GetCommand(conn, sql, parameters, commandType);
+            //    OpenConnection(conn);
+            //    return command.ExecuteNonQuery();
+            //}
+            //finally
+            //{
+            //    if (closeConnection
+            //        && conn.State != ConnectionState.Closed)
+            //    {
+            //        conn.Close();
+            //    }
+            //}
             throw new NotImplementedException();
         }
 
-        public static IEnumerable<T> ExecuteReader<T>(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect)
+        public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, bool closeConnection = false)
         {
-            throw new NotImplementedException();
+            var propertyInfos = GetPropertyInfos<T>();
+            var results = ExecuteReader<T>(conn, sql, propertyInfos, parameters, CommandType.Text, closeConnection);
+            return results;
+        }
+
+        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, bool closeConnection = false)
+        {
+            var propertyInfos = GetPropertyInfos<T>();
+            var results = ExecuteReader<T>(conn, procedureName, propertyInfos, parameters, CommandType.StoredProcedure, closeConnection);
+            return results;
         }
 
         internal static string GetSqlSelect<T>(IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters = null)
@@ -363,19 +404,19 @@ namespace DevelopmentInProgress.DipMapper
             }
         }
 
-        private static IDbCommand GetCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters)
+        private static IDbCommand GetCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType)
         {
             if (conn is SqlConnection)
             {
-                return GetSqlCommand((SqlConnection)conn, queryString, parameters);
+                return GetSqlCommand((SqlConnection)conn, queryString, parameters, commandType);
             }
 
             throw new NotImplementedException("Connection " + conn.GetType().Name + " not supported.");
         }
 
-        private static SqlCommand GetSqlCommand(SqlConnection conn, string queryString, Dictionary<string, object> parameters)
+        private static SqlCommand GetSqlCommand(SqlConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType)
         {
-            var sqlCommand = new SqlCommand(queryString, conn);
+            var sqlCommand = new SqlCommand(queryString, conn) {CommandType = commandType};
 
             if (parameters != null)
             {
@@ -388,27 +429,7 @@ namespace DevelopmentInProgress.DipMapper
             return sqlCommand;
         }
 
-        private static void ExecuteNonQuery(IDbConnection conn, string sql, Dictionary<string, object> parameters,
-            bool closeConnection)
-        {
-            try
-            {
-                var command = GetCommand(conn, sql, parameters);
-                OpenConnection(conn);
-                command.ExecuteNonQuery();
-            }
-            finally
-            {
-                if (closeConnection
-                    && conn.State != ConnectionState.Closed)
-                {
-                    conn.Close();
-                }
-            }
-        }
-
-        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql,
-            IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, bool closeConnection)
+        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, CommandType commandType, bool closeConnection)
         {
             var result = new List<T>();
 
@@ -416,7 +437,7 @@ namespace DevelopmentInProgress.DipMapper
 
             try
             {
-                var command = GetCommand(conn, sql, parameters);
+                var command = GetCommand(conn, sql, parameters, commandType);
                 OpenConnection(conn);
                 reader = command.ExecuteReader();
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -127,6 +128,11 @@ namespace DevelopmentInProgress.DipMapper.Test
         [TestMethod]
         public void DipMapper_Database_Test()
         {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.ExecuteNonQuery("TRUNCATE TABLE Activity;");
+            }
+
             // Arrange
             var read = new Activity()
             {
