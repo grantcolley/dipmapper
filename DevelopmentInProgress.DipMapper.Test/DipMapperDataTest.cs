@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DevelopmentInProgress.DipMapper.Test
@@ -10,11 +11,43 @@ namespace DevelopmentInProgress.DipMapper.Test
     [TestClass]
     public class DipMapperDataTest
     {
-        private string connectionString = "Data Source=(local);Initial Catalog=DipMapper;Integrated Security=true";
+        private static string connectionString = "Data Source=(local);Initial Catalog=DipMapper;Integrated Security=true";
 
-        [TestInitialize]
-        public void Setup()
+        [ClassInitialize]
+        public static void ClassInitialise(TestContext testContext)
         {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                var createTable = new StringBuilder("CREATE TABLE [dbo].[Activity](");
+                createTable.Append("[Id] [int] IDENTITY(1,1) NOT NULL,");
+                createTable.Append("[Name] [varchar](50) NULL,");
+                createTable.Append("[Level] [float] NULL,");
+                createTable.Append("[IsActive] [bit] NULL,");
+                createTable.Append("[Created] [datetime] NULL,");
+                createTable.Append("[Updated] [datetime] NULL,");
+                createTable.Append("[ActivityType] [int] NULL)");
+                
+                conn.ExecuteNonQuery(createTable.ToString());
+
+                var createProc = new StringBuilder("CREATE PROCEDURE GetActivities");                
+                createProc.Append(" @IsActive bit");
+                createProc.Append(" AS");
+                createProc.Append(" BEGIN");
+                createProc.Append(" SELECT * from Activity WHERE IsActive = @IsActive;");
+                createProc.Append(" END");
+ 
+                conn.ExecuteNonQuery(createProc.ToString());
+            }
+        }
+
+        [ClassCleanup]
+        public static void ClassCleanup()
+        {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.ExecuteNonQuery("DROP TABLE Activity;");
+                conn.ExecuteNonQuery("DROP PROCEDURE GetActivities;");
+            }
         }
 
         [TestMethod]
@@ -128,11 +161,6 @@ namespace DevelopmentInProgress.DipMapper.Test
         [TestMethod]
         public void DipMapper_Database_Test()
         {
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.ExecuteNonQuery("TRUNCATE TABLE Activity;");
-            }
-
             // Arrange
             var read = new Activity()
             {
@@ -189,6 +217,14 @@ namespace DevelopmentInProgress.DipMapper.Test
                 Assert.AreEqual(activity.Name, "Write");
                 ////////////////////////////////////////////////////
 
+                // Single return none //////////////////////////////
+                // Act
+                var admin = conn.Single<Activity>(new Dictionary<string, object>() { { "Id", 1000 } });
+
+                // Assert
+                Assert.IsNull(admin);
+                ////////////////////////////////////////////////////
+
                 // Test Select Many ////////////////////////////////
                 // Act
                 var activities = conn.Select<Activity>(new Dictionary<string, object>() {{"IsActive", true}});
@@ -201,20 +237,43 @@ namespace DevelopmentInProgress.DipMapper.Test
                 Assert.AreEqual(activities.ElementAt(1).Name, "Write");
                 ////////////////////////////////////////////////////
 
-                // Single return none //////////////////////////////
-                // Act
-                var admin = conn.Single<Activity>(new Dictionary<string, object>() {{"Id", 1000}});
-
-                // Assert
-                Assert.IsNull(admin);
-                ////////////////////////////////////////////////////
-
                 // Select return none //////////////////////////////
                 // Act
                 var internals = conn.Select<Activity>(new Dictionary<string, object>() {{"ActivityType", 100}});
 
                 // Assert
                 Assert.AreEqual(internals.Count(), 0);
+                ////////////////////////////////////////////////////
+
+                // Select Sql //////////////////////////////////////
+                // Arrange
+                activities = null;
+                var sql = "SELECT * FROM Activity WHERE IsActive = @IsActive;";
+       
+                // Act 
+                activities = conn.ExecuteSql<Activity>(sql, new Dictionary<string, object>() {{"@IsActive", true}});
+
+                // Assert
+                Assert.AreEqual(activities.Count(), 2);
+                Assert.AreEqual(activities.ElementAt(0).Id, 1);
+                Assert.AreEqual(activities.ElementAt(0).Name, "Read");
+                Assert.AreEqual(activities.ElementAt(1).Id, 2);
+                Assert.AreEqual(activities.ElementAt(1).Name, "Write");
+                ////////////////////////////////////////////////////
+
+                ////////////////////////////////////////////////////
+                // Arrange
+                activities = null;
+
+                // Act 
+                activities = conn.ExecuteProcedure<Activity>("GetActivities", new Dictionary<string, object>() {{"@IsActive", true}});
+
+                // Assert
+                Assert.AreEqual(activities.Count(), 2);
+                Assert.AreEqual(activities.ElementAt(0).Id, 1);
+                Assert.AreEqual(activities.ElementAt(0).Name, "Read");
+                Assert.AreEqual(activities.ElementAt(1).Id, 2);
+                Assert.AreEqual(activities.ElementAt(1).Name, "Write");
                 ////////////////////////////////////////////////////
 
                 // Update single ///////////////////////////////////
