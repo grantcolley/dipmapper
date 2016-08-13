@@ -1,4 +1,11 @@
-﻿using System;
+﻿//-----------------------------------------------------------------------
+// <copyright file="DipMapper.cs" company="Development In Progress Ltd">
+//     Copyright © 2016. All rights reserved.
+// </copyright>
+// <author>Grant Colley</author>
+//-----------------------------------------------------------------------
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
@@ -11,6 +18,9 @@ using System.Runtime.CompilerServices;
 
 namespace DevelopmentInProgress.DipMapper
 {
+    /// <summary>
+    /// DipMapper is a simple lightweight data access and object relational mapper.
+    /// </summary>
     public static class DipMapper
     {
         internal enum ConnType
@@ -19,21 +29,30 @@ namespace DevelopmentInProgress.DipMapper
             OleDb
         }
 
-        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, bool closeConnection = false) where T : new()
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="conn"></param>
+        /// <param name="parameters"></param>
+        /// <param name="transaction"></param>
+        /// <param name="closeAndDisposeConnection"></param>
+        /// <returns></returns>
+        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : new()
         {
-            return Select<T>(conn, parameters, closeConnection).SingleOrDefault();
+            return Select<T>(conn, parameters, transaction, closeAndDisposeConnection).SingleOrDefault();
         }
 
-        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, bool closeConnection = false) where T : new()
+        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : new()
         {
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlSelect<T>(propertyInfos, parameters);
             var extendedParameters = GetExtendedParameters<T>(parameters);
-            var results = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, closeConnection);
+            var results = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
             return results;
         }
 
-        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, bool closeConnection = false)
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             if (skipOnCreateFields == null)
             {
@@ -50,11 +69,11 @@ namespace DevelopmentInProgress.DipMapper
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, skipOnCreateFields);
             var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnCreateFields);
-            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, closeConnection).Single();
+            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection).Single();
             return result;
         }
 
-        public static int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, bool closeConnection = false)
+        public static int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             if (skipOnUpdateFields == null)
             {
@@ -64,64 +83,61 @@ namespace DevelopmentInProgress.DipMapper
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlUpdate<T>(propertyInfos, parameters, skipOnUpdateFields);
             var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnUpdateFields, parameters);
-            return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, closeConnection);
+            return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
         }
 
-        public static int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, bool closeConnection = false)
+        public static int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             var sql = GetSqlDelete<T>(parameters);
             var extendedParameters = GetExtendedParameters<T>(parameters);
-            return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, closeConnection);
+            return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
         }
 
-        public static int ExecuteNonQuery(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, bool closeConnection = false)
+        public static int ExecuteNonQuery(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             try
             {
-                var command = GetCommand(conn, sql, parameters, commandType);
+                var command = GetCommand(conn, sql, parameters, commandType, transaction);
                 OpenConnection(conn);
                 return command.ExecuteNonQuery();
             }
             finally
             {
-                if (closeConnection
-                    && conn.State != ConnectionState.Closed)
+                if (closeAndDisposeConnection)
                 {
-                    conn.Close();
+                    CloseAndDispose(conn);
                 }
             }
         }
 
-        public static T ExecuteScalar<T>(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.TableDirect, bool closeConnection = false)
+        public static object ExecuteScalar(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
-            //try
-            //{
-            //    var command = GetCommand(conn, sql, parameters, commandType);
-            //    OpenConnection(conn);
-            //    return command.ExecuteNonQuery();
-            //}
-            //finally
-            //{
-            //    if (closeConnection
-            //        && conn.State != ConnectionState.Closed)
-            //    {
-            //        conn.Close();
-            //    }
-            //}
-            throw new NotImplementedException();
+            try
+            {
+                var command = GetCommand(conn, sql, parameters, commandType, transaction);
+                OpenConnection(conn);
+                return command.ExecuteScalar();
+            }
+            finally
+            {
+                if (closeAndDisposeConnection)
+                {
+                    CloseAndDispose(conn);
+                }
+            }
         }
 
-        public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, bool closeConnection = false)
+        public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             var propertyInfos = GetPropertyInfos<T>();
-            var results = ExecuteReader<T>(conn, sql, propertyInfos, parameters, CommandType.Text, closeConnection);
+            var results = ExecuteReader<T>(conn, sql, propertyInfos, null, CommandType.Text, transaction, closeAndDisposeConnection);
             return results;
         }
 
-        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, bool closeConnection = false)
+        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             var propertyInfos = GetPropertyInfos<T>();
-            var results = ExecuteReader<T>(conn, procedureName, propertyInfos, parameters, CommandType.StoredProcedure, closeConnection);
+            var results = ExecuteReader<T>(conn, procedureName, propertyInfos, parameters, CommandType.StoredProcedure, transaction, closeAndDisposeConnection);
             return results;
         }
 
@@ -279,39 +295,6 @@ namespace DevelopmentInProgress.DipMapper
             throw new NotImplementedException("Connection " + connType.GetType().Name + " not supported.");
         }
 
-        //private static string SqlConvert(object value)
-        //{
-        //    if (value == null)
-        //    {
-        //        return "null";
-        //    }
-
-        //    switch (value.GetType().Name)
-        //    {
-        //        case "String":
-        //            if (string.IsNullOrEmpty(value.ToString()))
-        //            {
-        //                return "null";
-        //            }
-
-        //            return "'" + value + "'";
-
-        //        case "Boolean":
-        //            return (bool) value ? "1" : "0";
-
-        //        case "DateTime":
-        //            return "'" + ((DateTime) value).Date + "'";
-
-        //        default:
-        //            if (value.GetType().IsEnum)
-        //            {
-        //                return Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType())).ToString();
-        //            }
-
-        //            return value.ToString();
-        //    }
-        //}
-
         internal static bool UnsupportedProperty(PropertyInfo propertyInfo)
         {
             // Skip non-public properties and properties that are either 
@@ -404,19 +387,24 @@ namespace DevelopmentInProgress.DipMapper
             }
         }
 
-        private static IDbCommand GetCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType)
+        private static IDbCommand GetCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction)
         {
             if (conn is SqlConnection)
             {
-                return GetSqlCommand((SqlConnection)conn, queryString, parameters, commandType);
+                return GetSqlCommand((SqlConnection)conn, queryString, parameters, commandType, (SqlTransaction)transaction);
             }
 
             throw new NotImplementedException("Connection " + conn.GetType().Name + " not supported.");
         }
 
-        private static SqlCommand GetSqlCommand(SqlConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType)
+        private static SqlCommand GetSqlCommand(SqlConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType, SqlTransaction transaction)
         {
             var sqlCommand = new SqlCommand(queryString, conn) {CommandType = commandType};
+
+            if (transaction != null)
+            {
+                sqlCommand.Transaction = transaction;
+            }
 
             if (parameters != null)
             {
@@ -429,7 +417,7 @@ namespace DevelopmentInProgress.DipMapper
             return sqlCommand;
         }
 
-        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, CommandType commandType, bool closeConnection)
+        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection)
         {
             var result = new List<T>();
 
@@ -437,7 +425,7 @@ namespace DevelopmentInProgress.DipMapper
 
             try
             {
-                var command = GetCommand(conn, sql, parameters, commandType);
+                var command = GetCommand(conn, sql, parameters, commandType, transaction);
                 OpenConnection(conn);
                 reader = command.ExecuteReader();
 
@@ -459,10 +447,9 @@ namespace DevelopmentInProgress.DipMapper
                     reader.Dispose();
                 }
 
-                if (closeConnection
-                    && conn.State != ConnectionState.Closed)
+                if (closeAndDisposeConnection)
                 {
-                    conn.Close();
+                    CloseAndDispose(conn);
                 }
             }
 
@@ -485,6 +472,16 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             return t;
+        }
+
+        private static void CloseAndDispose(IDbConnection conn)
+        {
+            if (conn.State != ConnectionState.Closed)
+            {
+                conn.Close();
+            }
+
+            conn.Dispose();
         }
     }
 }

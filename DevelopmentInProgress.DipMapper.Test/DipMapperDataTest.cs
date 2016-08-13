@@ -245,13 +245,13 @@ namespace DevelopmentInProgress.DipMapper.Test
                 Assert.AreEqual(internals.Count(), 0);
                 ////////////////////////////////////////////////////
 
-                // Select Sql //////////////////////////////////////
+                // ExecuteSql //////////////////////////////////////
                 // Arrange
                 activities = null;
-                var sql = "SELECT * FROM Activity WHERE IsActive = @IsActive;";
+                var sql = "SELECT * FROM Activity WHERE IsActive = 1;";
        
                 // Act 
-                activities = conn.ExecuteSql<Activity>(sql, new Dictionary<string, object>() {{"@IsActive", true}});
+                activities = conn.ExecuteSql<Activity>(sql);
 
                 // Assert
                 Assert.AreEqual(activities.Count(), 2);
@@ -261,7 +261,7 @@ namespace DevelopmentInProgress.DipMapper.Test
                 Assert.AreEqual(activities.ElementAt(1).Name, "Write");
                 ////////////////////////////////////////////////////
 
-                ////////////////////////////////////////////////////
+                // ExecuteProcedure ////////////////////////////////
                 // Arrange
                 activities = null;
 
@@ -274,6 +274,14 @@ namespace DevelopmentInProgress.DipMapper.Test
                 Assert.AreEqual(activities.ElementAt(0).Name, "Read");
                 Assert.AreEqual(activities.ElementAt(1).Id, 2);
                 Assert.AreEqual(activities.ElementAt(1).Name, "Write");
+                ////////////////////////////////////////////////////
+
+                // ExecuteScalar ///////////////////////////////////
+                // Act
+                var result = conn.ExecuteScalar("SELECT Name FROM Activity WHERE Id = 2");
+
+                // Assert
+                Assert.AreEqual(result, "Write");
                 ////////////////////////////////////////////////////
 
                 // Update single ///////////////////////////////////
