@@ -30,19 +30,29 @@ namespace DevelopmentInProgress.DipMapper
         }
 
         /// <summary>
-        /// 
+        /// Select a single record and return a populated instance of the specified type.
+        /// An exception is thrown if more than one record is returned.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="conn"></param>
-        /// <param name="parameters"></param>
-        /// <param name="transaction"></param>
-        /// <param name="closeAndDisposeConnection"></param>
-        /// <returns></returns>
+        /// <typeparam name="T">The type of object to populate and return.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="parameters">A dictionary of parameters used in the WHERE clause.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>A populated instance of the specified type, else returns null if no record is found.</returns>
         public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : new()
         {
             return Select<T>(conn, parameters, transaction, closeAndDisposeConnection).SingleOrDefault();
         }
 
+        /// <summary>
+        /// Selects a set of records and returns them as a list of the specified type.
+        /// </summary>
+        /// <typeparam name="T">The type of object to populate and return.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="parameters">A dictionary of parameters used in the WHERE clause.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>A list of the specified type.</returns>
         public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : new()
         {
             var propertyInfos = GetPropertyInfos<T>();
@@ -52,6 +62,17 @@ namespace DevelopmentInProgress.DipMapper
             return results;
         }
 
+        /// <summary>
+        /// Inserts the object and returns a fully populated instance of the object. 
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="target">The target object.</param>
+        /// <param name="identityField">The name of the identity field of target object.</param>
+        /// <param name="skipOnCreateFields">Fields to skip when inserting the record. This is used when relying on the database to apply default values when creating a new record.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
         public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             if (skipOnCreateFields == null)
@@ -73,6 +94,17 @@ namespace DevelopmentInProgress.DipMapper
             return result;
         }
 
+        /// <summary>
+        /// Updates the object.
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="target">The target object.</param>
+        /// <param name="parameters">A dictionary of parameters used in the WHERE clause.</param>
+        /// <param name="skipOnUpdateFields">Fields to skip when updating e.g. read-only fields.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>The number of records affected.</returns>
         public static int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             if (skipOnUpdateFields == null)
@@ -86,6 +118,15 @@ namespace DevelopmentInProgress.DipMapper
             return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
         }
 
+        /// <summary>
+        /// Deletes the object.
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="parameters">A dictionary of parameters used in the WHERE clause.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>The number of records affected.</returns>
         public static int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             var sql = GetSqlDelete<T>(parameters);
@@ -93,6 +134,16 @@ namespace DevelopmentInProgress.DipMapper
             return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
         }
 
+        /// <summary>
+        /// Execute a SQL statement or stored procedure and only return the number of rows impacted.
+        /// </summary>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="sql">The SQL or the name of the stored procedure to be executed.</param>
+        /// <param name="parameters">A dictionary of parameters.</param>
+        /// <param name="commandType">Indicates whether executing SQL (Text) or stored proc (StoredProcedure). Note, TableDirect is not supported.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>The number of records affected.</returns>
         public static int ExecuteNonQuery(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             try
@@ -110,6 +161,16 @@ namespace DevelopmentInProgress.DipMapper
             }
         }
 
+        /// <summary>
+        /// Execute a SQL statement or stored procedure and only return a scalar value. No assumpptions are made about the type of the scalar value, which is returned as n object.
+        /// </summary>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="sql">The SQL or the name of the stored procedure to be executed.</param>
+        /// <param name="parameters">A dictionary of parameters.</param>
+        /// <param name="commandType">Indicates whether executing SQL (Text) or stored proc (StoredProcedure). Note, TableDirect is not supported.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>A scalar value resulting from executing the SQL statement or stored procedure.</returns>
         public static object ExecuteScalar(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             try
@@ -127,6 +188,15 @@ namespace DevelopmentInProgress.DipMapper
             }
         }
 
+        /// <summary>
+        /// Executes a SQL statement and returns the results as a list of the specified type.
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="sql">The SQL statement to execute.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>The results of executing the SQL statement as a list of the specified type.</returns>
         public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             var propertyInfos = GetPropertyInfos<T>();
@@ -134,11 +204,78 @@ namespace DevelopmentInProgress.DipMapper
             return results;
         }
 
+        /// <summary>
+        /// Executes a stored procedure and returns the results as a list of the specified type.
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="procedureName">The stored procedure to execute.</param>
+        /// <param name="parameters">A dictionary of parameters passed to the stored procedure.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>The results of executing the stored procedure as a list of the specified type.</returns>
         public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             var propertyInfos = GetPropertyInfos<T>();
             var results = ExecuteReader<T>(conn, procedureName, propertyInfos, parameters, CommandType.StoredProcedure, transaction, closeAndDisposeConnection);
             return results;
+        }
+
+        internal static IEnumerable<PropertyInfo> GetPropertyInfos<T>()
+        {
+            var propertyInfoResults = new List<PropertyInfo>();
+            PropertyInfo[] propertyInfos = typeof(T).GetProperties();
+
+            foreach (var propertyInfo in propertyInfos)
+            {
+                if (UnsupportedProperty(propertyInfo))
+                {
+                    continue;
+                }
+
+                propertyInfoResults.Add(propertyInfo);
+            }
+
+            return propertyInfoResults;
+        }
+
+        internal static bool UnsupportedProperty(PropertyInfo propertyInfo)
+        {
+            // Skip non-public properties and properties that are either 
+            // classes (but not strings), interfaces, lists, generic 
+            // lists or arrays.
+            var propertyType = propertyInfo.PropertyType;
+            if (propertyType.IsNotPublic)
+            {
+                return true;
+            }
+
+            if (propertyType != typeof(string)
+                && (propertyType.IsClass
+                    || propertyType.IsInterface
+                    || propertyType.IsArray
+                    || propertyType.GetInterfaces()
+                        .Any(
+                            i =>
+                                (i.GetTypeInfo().Name.Equals(typeof(IEnumerable).Name)
+                                 || (i.IsGenericType &&
+                                     i.GetGenericTypeDefinition().Name.Equals(typeof(IEnumerable<>).Name))))))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        internal static string GetSqlTableName<T>()
+        {
+            if (typeof(T).IsGenericType
+                && typeof(T).GenericTypeArguments.Any())
+            {
+                return typeof(T).GenericTypeArguments[0].Name;
+            }
+
+            return typeof(T).Name;
         }
 
         internal static string GetSqlSelect<T>(IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters = null)
@@ -184,35 +321,6 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             return where;
-        }
-
-        internal static IEnumerable<PropertyInfo> GetPropertyInfos<T>()
-        {
-            var propertyInfoResults = new List<PropertyInfo>();
-            PropertyInfo[] propertyInfos = typeof(T).GetProperties();
-
-            foreach (var propertyInfo in propertyInfos)
-            {
-                if (UnsupportedProperty(propertyInfo))
-                {
-                    continue;
-                }
-
-                propertyInfoResults.Add(propertyInfo);
-            }
-
-            return propertyInfoResults;
-        }
-
-        internal static string GetSqlTableName<T>()
-        {
-            if (typeof (T).IsGenericType
-                && typeof (T).GenericTypeArguments.Any())
-            {
-                return typeof (T).GenericTypeArguments[0].Name;
-            }
-
-            return typeof (T).Name;
         }
 
         internal static string GetSqlSelectFields(IEnumerable<PropertyInfo> propertyInfos)
@@ -268,7 +376,7 @@ namespace DevelopmentInProgress.DipMapper
             return " (" + fields + ") VALUES (" + parameters + ")";
         }
 
-        private static string GetSqlWhereAssignment(object value)
+        internal static string GetSqlWhereAssignment(object value)
         {
             if (value == null)
             {
@@ -284,7 +392,7 @@ namespace DevelopmentInProgress.DipMapper
             return "=";
         }
 
-        private static string GetIdentitySql(ConnType connType)
+        internal static string GetIdentitySql(ConnType connType)
         {
             switch (connType)
             {
@@ -293,34 +401,6 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             throw new NotImplementedException("Connection " + connType.GetType().Name + " not supported.");
-        }
-
-        internal static bool UnsupportedProperty(PropertyInfo propertyInfo)
-        {
-            // Skip non-public properties and properties that are either 
-            // classes (but not strings), interfaces, lists, generic 
-            // lists or arrays.
-            var propertyType = propertyInfo.PropertyType;
-            if (propertyType.IsNotPublic)
-            {
-                return true;
-            }
-
-            if (propertyType != typeof(string)
-                && (propertyType.IsClass
-                    || propertyType.IsInterface
-                    || propertyType.IsArray
-                    || propertyType.GetInterfaces()
-                        .Any(
-                            i =>
-                                (i.GetTypeInfo().Name.Equals(typeof(IEnumerable).Name)
-                                 || (i.IsGenericType &&
-                                     i.GetGenericTypeDefinition().Name.Equals(typeof(IEnumerable<>).Name))))))
-            {
-                return true;
-            }
-
-            return false;
         }
 
         internal static Dictionary<string, object> GetExtendedParameters<T>(Dictionary<string, object> parameters = null)
@@ -369,7 +449,7 @@ namespace DevelopmentInProgress.DipMapper
             return Activator.CreateInstance<T>();
         }
 
-        internal static ConnType GetConnType(IDbConnection conn)
+        private static ConnType GetConnType(IDbConnection conn)
         {
             if (conn is SqlConnection)
             {
