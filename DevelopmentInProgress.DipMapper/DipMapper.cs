@@ -25,8 +25,7 @@ namespace DevelopmentInProgress.DipMapper
     {
         internal enum ConnType
         {
-            MSSQL,
-            OleDb
+            MSSQL
         }
 
         /// <summary>
@@ -444,12 +443,7 @@ namespace DevelopmentInProgress.DipMapper
             return extendedParameters;
         }
 
-        private static T CreateNew<T>()
-        {
-            return Activator.CreateInstance<T>();
-        }
-
-        private static ConnType GetConnType(IDbConnection conn)
+        internal static ConnType GetConnType(IDbConnection conn)
         {
             if (conn is SqlConnection)
             {
@@ -457,6 +451,11 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             throw new NotImplementedException("Connection " + conn.GetType().Name + " not supported.");
+        }
+
+        private static T CreateNew<T>()
+        {
+            return Activator.CreateInstance<T>();
         }
 
         private static void OpenConnection(IDbConnection conn)
