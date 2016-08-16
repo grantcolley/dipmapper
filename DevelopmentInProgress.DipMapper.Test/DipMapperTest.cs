@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Odbc;
+using System.Data.OleDb;
+using System.Data.SqlClient;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -168,6 +171,117 @@ namespace DevelopmentInProgress.DipMapper.Test
         }
 
         [TestMethod]
+        public void GetSqlInsertFields_SkipIdentityFieldOnly_GetSql()
+        {
+            // Arrange
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var skipFields = new List<string>() {"Id"};
+
+            // Act
+            var sqlInsertFields = DipMapper.GetSqlInsertFields(propertyInfos, skipFields);
+
+            // Assert
+            Assert.AreEqual(sqlInsertFields, " (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType)");
+        }
+
+        [TestMethod]
+        public void GetSqlInsertFields_SkipMultipleFields_GetSql()
+        {
+            // Arrange
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var skipFields = new List<string>() { "Updated", "Id" };            
+
+            // Act
+            var sqlInsertFields = DipMapper.GetSqlInsertFields(propertyInfos, skipFields);
+
+            // Assert
+            Assert.AreEqual(sqlInsertFields, " (Name, Level, IsActive, Created, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @ActivityType)");
+        }
+
+        [TestMethod]
+        public void GetConnType_GetForSqlConn()
+        {
+            // Arrange
+            var conn = new SqlConnection();
+
+            // Act
+            var connType = DipMapper.GetConnType(conn);
+
+            // Assert
+            Assert.AreEqual(connType, DipMapper.ConnType.MSSQL);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(NotImplementedException))]
+        public void GetConnType_GetForOleDbConnection_NotImplementedException()
+        {
+            // Arrange
+            var conn = new OleDbConnection();
+
+            // Act
+            var connType = DipMapper.GetConnType(conn);
+
+            // Assert
+            Assert.AreEqual(connType, DipMapper.ConnType.MSSQL);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(NotImplementedException))]
+        public void GetConnType_GetForOdbcConnection_NotImplementedException()
+        {
+            // Arrange
+            var conn = new OdbcConnection();
+
+            // Act
+            var connType = DipMapper.GetConnType(conn);
+
+            // Assert
+            Assert.AreEqual(connType, DipMapper.ConnType.MSSQL);
+        }
+
+        [TestMethod]
+        public void GetIdentitySql_SCOPE_IDENTITY()
+        {
+            // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
+
+            // Act
+            var identitySql = DipMapper.GetIdentitySql(connType);
+
+            // Assert
+            Assert.AreEqual(identitySql, "SCOPE_IDENTITY()");
+        }
+
+        [TestMethod]
+        public void GetSqlUpdateFields_SkipIdentityOnUpdateOnly_GetSql()
+        {
+            // Arrange
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var skipFields = new List<string>() { "Id" };
+
+            // Act
+            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(propertyInfos, skipFields);
+
+            // Assert
+            Assert.AreEqual(sqlUpdateFields, "Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType");
+        }
+
+        [TestMethod]
+        public void GetSqlUpdateFields_SkipMultipleFields_GetSql()
+        {
+            // Arrange
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var skipFields = new List<string>() { "Id", "Created", "Updated"};
+
+            // Act
+            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(propertyInfos, skipFields);
+
+            // Assert
+            Assert.AreEqual(sqlUpdateFields, "Name=@Name, Level=@Level, IsActive=@IsActive, ActivityType=@ActivityType");
+        }
+
+        [TestMethod]
         public void xx()
         {
             // Arrange
@@ -176,6 +290,5 @@ namespace DevelopmentInProgress.DipMapper.Test
 
             // Assert
         }
-
     }
 }
