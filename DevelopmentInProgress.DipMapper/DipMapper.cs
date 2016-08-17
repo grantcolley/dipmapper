@@ -284,9 +284,15 @@ namespace DevelopmentInProgress.DipMapper
 
         internal static string GetSqlInsert<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, IEnumerable<string> skipOnCreateFields = null)
         {
-            return "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields(propertyInfos, skipOnCreateFields) + ";" +
-                   "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " +
-                   identityField + " = " + GetIdentitySql(connType) + ";";
+            string insertSql = "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields(propertyInfos, skipOnCreateFields) + ";";
+
+            if (string.IsNullOrEmpty(identityField))
+            {
+                return insertSql;
+            }
+
+            return insertSql + "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() +
+                   " WHERE " + identityField + " = " + GetIdentitySql(connType) + ";";
         }
 
         internal static string GetSqlUpdate<T>(IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, IEnumerable<string> skipOnUpdateFields = null)
