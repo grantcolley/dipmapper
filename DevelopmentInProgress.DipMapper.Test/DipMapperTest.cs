@@ -396,13 +396,105 @@ namespace DevelopmentInProgress.DipMapper.Test
         }
 
         [TestMethod]
-        public void xx()
+        public void GetSqlDelete_WithoutParameters()
         {
             // Arrange
+            var parameters = new Dictionary<string, object>();
 
             // Act
+            var deleteSql = DipMapper.GetSqlDelete<Activity>(parameters);
 
             // Assert
+            Assert.AreEqual(deleteSql, "DELETE FROM Activity;");        
+        }
+
+        [TestMethod]
+        public void GetSqlDelete_WithParameters()
+        {
+            // Arrange
+            var parameters = new Dictionary<string, object>() { { "Id", 5 } };
+
+            // Act
+            var deleteSql = DipMapper.GetSqlDelete<Activity>(parameters);
+
+            // Assert
+            Assert.AreEqual(deleteSql, "DELETE FROM Activity WHERE Id=@_Id;");
+        }
+
+        [TestMethod]
+        public void GetExtendedParameters_ParametersOnly()
+        {
+            // Arrange
+            var parameters = new Dictionary<string, object>() { { "Id", 5 } };
+
+            // Act
+            var extendedParameters = DipMapper.GetExtendedParameters<Activity>(parameters);
+
+            // Assert
+            Assert.AreEqual(extendedParameters.Count(), 1);
+            Assert.AreEqual(extendedParameters.ElementAt(0).Key, "@_Id");
+        }
+
+        [TestMethod]
+        public void GetExtendedParameters_PropertyInfosParametersSkipFields()
+        {
+            // Arrange
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var parameters = new Dictionary<string, object>() { { "Id", 5 } };
+            var skipFields = new List<string>() {"Id"};
+
+            var activity = new Activity()
+            {
+                Id = 3,
+                Name = "Activity1",
+                IsActive = true,
+                Level = 4,
+                Created = DateTime.Today,
+                ActivityType = ActivityTypeEnum.Shared
+            };
+
+            // Act
+            var extendedParameters = DipMapper.GetExtendedParameters(activity, propertyInfos, skipFields, parameters);
+
+            // Assert
+            Assert.AreEqual(extendedParameters.Count(), 7);
+            Assert.AreEqual(extendedParameters.ElementAt(0).Key, "@Name");
+            Assert.AreEqual(extendedParameters.ElementAt(1).Key, "@Level");
+            Assert.AreEqual(extendedParameters.ElementAt(2).Key, "@IsActive");
+            Assert.AreEqual(extendedParameters.ElementAt(3).Key, "@Created");
+            Assert.AreEqual(extendedParameters.ElementAt(4).Key, "@Updated");
+            Assert.AreEqual(extendedParameters.ElementAt(5).Key, "@ActivityType");
+            Assert.AreEqual(extendedParameters.ElementAt(6).Key, "@_Id");
+        }
+
+        [TestMethod]
+        public void GetExtendedParameters_PropertyInfosSkipFields()
+        {
+            // Arrange
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var skipFields = new List<string>() { "Id" };
+
+            var activity = new Activity()
+            {
+                Id = 3,
+                Name = "Activity1",
+                IsActive = true,
+                Level = 4,
+                Created = DateTime.Today,
+                ActivityType = ActivityTypeEnum.Shared
+            };
+
+            // Act
+            var extendedParameters = DipMapper.GetExtendedParameters(activity, propertyInfos, skipFields);
+
+            // Assert
+            Assert.AreEqual(extendedParameters.Count(), 6);
+            Assert.AreEqual(extendedParameters.ElementAt(0).Key, "@Name");
+            Assert.AreEqual(extendedParameters.ElementAt(1).Key, "@Level");
+            Assert.AreEqual(extendedParameters.ElementAt(2).Key, "@IsActive");
+            Assert.AreEqual(extendedParameters.ElementAt(3).Key, "@Created");
+            Assert.AreEqual(extendedParameters.ElementAt(4).Key, "@Updated");
+            Assert.AreEqual(extendedParameters.ElementAt(5).Key, "@ActivityType");
         }
     }
 }
