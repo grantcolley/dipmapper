@@ -7,11 +7,14 @@
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("DevelopmentInProgress.DipMapper.Test")]
@@ -38,7 +41,7 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>A populated instance of the specified type, else returns null if no record is found.</returns>
-        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : new()
+        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             return Select<T>(conn, parameters, transaction, closeAndDisposeConnection).SingleOrDefault();
         }
@@ -52,7 +55,7 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>A list of the specified type.</returns>
-        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : new()
+        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlSelect<T>(propertyInfos, parameters);
@@ -72,7 +75,7 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
-        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             if (skipOnCreateFields == null)
             {
@@ -196,7 +199,7 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>The results of executing the SQL statement as a list of the specified type.</returns>
-        public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+        public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
             var results = ExecuteReader<T>(conn, sql, propertyInfos, null, CommandType.Text, transaction, closeAndDisposeConnection);
@@ -213,7 +216,7 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>The results of executing the stored procedure as a list of the specified type.</returns>
-        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
             var results = ExecuteReader<T>(conn, procedureName, propertyInfos, parameters, CommandType.StoredProcedure, transaction, closeAndDisposeConnection);
@@ -462,6 +465,28 @@ namespace DevelopmentInProgress.DipMapper
         private static T CreateNew<T>()
         {
             return Activator.CreateInstance<T>();
+        }
+
+        private static T CreateLambdaInstance<T>()
+        {
+            var createDelegate = Expression.Lambda<Func<T>>(Expression.New(typeof (T))).Compile();
+            return createDelegate();
+        }
+
+        private static T CreateDynamicInstance<T>() where T : class, new()
+        {
+            var createDelegate = CreateDelegate<T>();
+            return createDelegate();
+        }
+
+        private static Func<T> CreateDelegate<T>() where T : class, new()
+        {
+            var t = typeof (T);
+            var dynMethod = new DynamicMethod("DIPMAPPER_" + t.Name, t, null, t);
+            ILGenerator ilGen = dynMethod.GetILGenerator();
+            ilGen.Emit(OpCodes.Newobj, t.GetConstructor(Type.EmptyTypes));
+            ilGen.Emit(OpCodes.Ret);
+            return (Func<T>)dynMethod.CreateDelegate(typeof(Func<T>));
         }
 
         private static void OpenConnection(IDbConnection conn)
