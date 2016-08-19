@@ -7,12 +7,10 @@
 
 using System;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -462,24 +460,22 @@ namespace DevelopmentInProgress.DipMapper
             throw new NotImplementedException("Connection " + conn.GetType().Name + " not supported.");
         }
 
-        private static T CreateNew<T>()
+        private static Func<T> New<T>(int rows) where T : class, new()
+        {
+            if (rows > 1000)
+            {
+                return DynamicMethod<T>();
+            }
+
+            return ActivatorCreateInstance<T>;
+        }
+
+        private static T ActivatorCreateInstance<T>() where T : class, new()
         {
             return Activator.CreateInstance<T>();
         }
 
-        private static T CreateLambdaInstance<T>()
-        {
-            var createDelegate = Expression.Lambda<Func<T>>(Expression.New(typeof (T))).Compile();
-            return createDelegate();
-        }
-
-        private static T CreateDynamicInstance<T>() where T : class, new()
-        {
-            var createDelegate = CreateDelegate<T>();
-            return createDelegate();
-        }
-
-        private static Func<T> CreateDelegate<T>() where T : class, new()
+        private static Func<T> DynamicMethod<T>() where T : class, new()
         {
             var t = typeof (T);
             var dynMethod = new DynamicMethod("DIPMAPPER_" + t.Name, t, null, t);
@@ -527,7 +523,7 @@ namespace DevelopmentInProgress.DipMapper
             return sqlCommand;
         }
 
-        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection)
+        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection) where T : class, new()
         {
             var result = new List<T>();
 
@@ -539,9 +535,11 @@ namespace DevelopmentInProgress.DipMapper
                 OpenConnection(conn);
                 reader = command.ExecuteReader();
 
+                var newT = New<T>(0);
+
                 while (reader.Read())
                 {
-                    var t = ReadData<T>(reader, propertyInfos);
+                    var t = ReadData<T>(reader, newT(), propertyInfos);
                     result.Add(t);
                 }
             }
@@ -566,9 +564,9 @@ namespace DevelopmentInProgress.DipMapper
             return result;
         }
 
-        private static T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos)
+        private static T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
         {
-            var t = CreateNew<T>();
+
             for (int i = 0; i < reader.FieldCount; i++)
             {
                 var propertyInfo = propertyInfos.FirstOrDefault(p => p.Name == reader.GetName(i));
