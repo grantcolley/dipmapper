@@ -1,5 +1,5 @@
 # dipmapper
-DipMapper is a lightweight object mapper that extends IDbConnection allowing you to map data to your objects (and back again) in a clean and easy way.
+DipMapper is a lightweight object mapper that extends IDbConnection allowing you to map data to your objects (and vice versa) in a clean and easy way.
 
 Example usage:
 
