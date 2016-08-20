@@ -1,5 +1,8 @@
 # dipmapper
-A flyweight ORM... development in progress.
+DipMapper is a lightweight object mapper that extends IDbConnection allowing you to map data to your objects (and back again) in a clean and easy way.
+
+Example usage:
+
 
 1. Nuget package
 2. Appveyor
