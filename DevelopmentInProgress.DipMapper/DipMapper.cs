@@ -52,13 +52,14 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="parameters">A dictionary of parameters used in the WHERE clause.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <param name="optimiseObjectCreation">Optimises object creation by compiling a <see cref="DynamicMethod"/> for creating instances of objects of a specified type. The method is cached for reuse.</param>
         /// <returns>A list of the specified type.</returns>
-        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlSelect<T>(propertyInfos, parameters);
             var extendedParameters = GetExtendedParameters<T>(parameters);
-            var results = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
+            var results = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
 
@@ -72,8 +73,9 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="skipOnCreateFields">Fields to skip when inserting the record. This is used when relying on the database to apply default values when creating a new record.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <param name="optimiseObjectCreation">Optimises object creation by compiling a <see cref="DynamicMethod"/> for creating instances of objects of a specified type. The method is cached for reuse.</param>
         /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
-        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
             if (skipOnCreateFields == null)
             {
@@ -90,7 +92,7 @@ namespace DevelopmentInProgress.DipMapper
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, skipOnCreateFields);
             var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnCreateFields);
-            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection).Single();
+            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection, optimiseObjectCreation).Single();
             return result;
         }
 
@@ -196,11 +198,12 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="sql">The SQL statement to execute.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <param name="optimiseObjectCreation">Optimises object creation by compiling a <see cref="DynamicMethod"/> for creating instances of objects of a specified type. The method is cached for reuse.</param>
         /// <returns>The results of executing the SQL statement as a list of the specified type.</returns>
-        public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
-            var results = ExecuteReader<T>(conn, sql, propertyInfos, null, CommandType.Text, transaction, closeAndDisposeConnection);
+            var results = ExecuteReader<T>(conn, sql, propertyInfos, null, CommandType.Text, transaction, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
 
@@ -213,11 +216,12 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="parameters">A dictionary of parameters passed to the stored procedure.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <param name="optimiseObjectCreation">Optimises object creation by compiling a <see cref="DynamicMethod"/> for creating instances of objects of a specified type. The method is cached for reuse.</param>
         /// <returns>The results of executing the stored procedure as a list of the specified type.</returns>
-        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
-            var results = ExecuteReader<T>(conn, procedureName, propertyInfos, parameters, CommandType.StoredProcedure, transaction, closeAndDisposeConnection);
+            var results = ExecuteReader<T>(conn, procedureName, propertyInfos, parameters, CommandType.StoredProcedure, transaction, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
 
@@ -460,9 +464,9 @@ namespace DevelopmentInProgress.DipMapper
             throw new NotImplementedException("Connection " + conn.GetType().Name + " not supported.");
         }
 
-        private static Func<T> New<T>(int rows) where T : class, new()
+        private static Func<T> New<T>(bool optimiseObjectCreation) where T : class, new()
         {
-            if (rows > 1000)
+            if (optimiseObjectCreation)
             {
                 return DynamicMethod<T>();
             }
@@ -523,7 +527,7 @@ namespace DevelopmentInProgress.DipMapper
             return sqlCommand;
         }
 
-        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection) where T : class, new()
+        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection, bool optimiseObjectCreation) where T : class, new()
         {
             var result = new List<T>();
 
@@ -535,7 +539,7 @@ namespace DevelopmentInProgress.DipMapper
                 OpenConnection(conn);
                 reader = command.ExecuteReader();
 
-                var newT = New<T>(0);
+                var newT = New<T>(optimiseObjectCreation);
 
                 while (reader.Read())
                 {
