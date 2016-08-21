@@ -25,6 +25,26 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             }
 ```
 
+### Select a single record
+```C#
+            var parameters = new Dictionary<string, object>() { { "Id", 123 } };
+            
+            using (var conn = new SqlConnection(connectionString))
+            {
+                var activity = conn.Single<Activity>(parameters);
+            }
+```
+
+### Select many records
+```C#
+            var parameters = new Dictionary<string, object>() { { "IsActive", true } };
+            
+            using (var conn = new SqlConnection(connectionString))
+            {
+                var activities = conn.Select<Activity>(parameters);
+            }
+```
+
 1. Nuget package
 2. Appveyor
 3. Documentation
