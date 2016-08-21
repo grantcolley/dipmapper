@@ -4,8 +4,26 @@
 
 DipMapper is a lightweight object mapper that extends IDbConnection allowing you to map data to your objects (and vice versa) in a clean and easy way.
 
-Example usage:
+## Example usage:
 
+### Inserting a record
+```C#
+            var read = new Activity()
+            {
+                Name = "Read",
+                Level = 1,
+                IsActive = true,
+                Created = DateTime.Today,
+                Updated = DateTime.Today,
+                ActivityType = ActivityTypeEnum.Shared,
+            };
+                
+            using (var conn = new SqlConnection(connectionString))
+            {
+                // Insert a record passing in the identity field name.
+                read = conn.Insert(read, "Id");
+            }
+```
 
 1. Nuget package
 2. Appveyor
