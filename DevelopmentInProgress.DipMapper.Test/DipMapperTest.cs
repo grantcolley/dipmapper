@@ -496,5 +496,67 @@ namespace DevelopmentInProgress.DipMapper.Test
             Assert.AreEqual(extendedParameters.ElementAt(4).Key, "@Updated");
             Assert.AreEqual(extendedParameters.ElementAt(5).Key, "@ActivityType");
         }
+
+        [TestMethod]
+        public void New_ActivatorCreateInstance()
+        {
+            // Arrange
+            var newT = DipMapper.New<Activity>(false);
+
+            // Act
+            var activity = newT();
+            activity.Name = "Test";
+
+            // Assert
+            Assert.AreEqual(activity.Name, "Test");
+        }
+
+        [TestMethod]
+        public void New_DynamicMethod()
+        {
+            // Arrange
+            var newT = DipMapper.New<Activity>(true);
+
+            // Act
+            var activity = newT();
+            activity.Name = "Test";
+
+            // Assert
+            Assert.AreEqual(activity.Name, "Test");
+        }
+
+        [TestMethod]
+        public void New_DynamicMethod_Cached()
+        {
+            // Arrange
+            var newActivity1 = DipMapper.New<Activity>(true);
+            var newGenericActivity1 = DipMapper.New<GenericActivity<int>>(true);
+            var newActivity2 = DipMapper.New<Activity>(true);
+            var newGenericActivity2 = DipMapper.New<GenericActivity<int>>(true);
+            var newGenericActivity3 = DipMapper.New<GenericActivity<Activity>>(true);
+
+            // Act
+            var activity1 = newActivity1();
+            activity1.Name = "Activity1";
+
+            var genericActivity1 = newGenericActivity1();
+            genericActivity1.Name = "GenericActivity1";
+
+            var activity2 = newActivity2();
+            activity2.Name = "Activity2";
+
+            var genericActivity2 = newGenericActivity2();
+            genericActivity2.Name = "GenericActivity2";
+
+            var genericActivity3 = newGenericActivity3();
+            genericActivity3.Name = "GenericActivity3";
+
+            // Assert
+            Assert.AreEqual(activity1.Name, "Activity1");
+            Assert.AreEqual(activity2.Name, "Activity2");
+            Assert.AreEqual(genericActivity1.Name, "GenericActivity1");
+            Assert.AreEqual(genericActivity2.Name, "GenericActivity2");
+            Assert.AreEqual(genericActivity3.Name, "GenericActivity3");
+        }
     }
 }
