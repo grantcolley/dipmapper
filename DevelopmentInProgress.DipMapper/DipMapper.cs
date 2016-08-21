@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -24,6 +25,26 @@ namespace DevelopmentInProgress.DipMapper
     /// </summary>
     public static class DipMapper
     {
+        internal static class DynamicMethodCache
+        {
+            private static readonly IDictionary<Type, object> cache = new ConcurrentDictionary<Type, object>();
+
+            internal static void Add<T>(T value)
+            {
+                cache.Add(typeof(T), value);
+            }
+
+            internal static bool Contains(Type t)
+            {
+                return cache.ContainsKey(t);
+            }
+
+            internal static T Get<T>()
+            {
+                return (T)cache[typeof(T)];
+            }
+        }
+
         internal enum ConnType
         {
             MSSQL
@@ -464,10 +485,15 @@ namespace DevelopmentInProgress.DipMapper
             throw new NotImplementedException("Connection " + conn.GetType().Name + " not supported.");
         }
 
-        private static Func<T> New<T>(bool optimiseObjectCreation) where T : class, new()
+        internal static Func<T> New<T>(bool optimiseObjectCreation) where T : class, new()
         {
             if (optimiseObjectCreation)
             {
+                if (DynamicMethodCache.Contains(typeof(Func<T>)))
+                {
+                    return DynamicMethodCache.Get<Func<T>>();
+                }
+
                 return DynamicMethod<T>();
             }
 
@@ -482,11 +508,13 @@ namespace DevelopmentInProgress.DipMapper
         private static Func<T> DynamicMethod<T>() where T : class, new()
         {
             var t = typeof (T);
-            var dynMethod = new DynamicMethod("DIPMAPPER_" + t.Name, t, null, t);
+            var dynMethod = new DynamicMethod("DIPMAPPER_" + typeof(T).Name, t, null, t);
             ILGenerator ilGen = dynMethod.GetILGenerator();
             ilGen.Emit(OpCodes.Newobj, t.GetConstructor(Type.EmptyTypes));
             ilGen.Emit(OpCodes.Ret);
-            return (Func<T>)dynMethod.CreateDelegate(typeof(Func<T>));
+            var result = (Func<T>)dynMethod.CreateDelegate(typeof(Func<T>));
+            DynamicMethodCache.Add(result);
+            return result;
         }
 
         private static void OpenConnection(IDbConnection conn)
