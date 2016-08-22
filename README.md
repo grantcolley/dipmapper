@@ -106,8 +106,8 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 ```
 
 1. Nuget package
-2. Appveyor
-3. Documentation
+2. Cache dynamic methods for optimisation
+3. Current support for SQL Server only
 4. Unsupported fields
 5. Table name for generic classes
 6. GetSqlWhereAssignment - null string treatment
