@@ -93,7 +93,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 ```C#
             using (var conn = new SqlConnection(connectionString))
             {
-                var result = conn.ExecuteScalar("SELECT Name FROM Activity WHERE Id = 123");
+                // SQL
+                var activityName = conn.ExecuteScalar("SELECT Name FROM Activity WHERE Id = 123");
+                
+                // Stored procedure
+                var count = conn.ExecuteScalar("GetActivityCount", parameters, CommandType.StoredProcedure);
             }
 ```
 
@@ -101,7 +105,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 ```C#
             using (var conn = new SqlConnection(connectionString))
             {
+                // SQL
                 conn.ExecuteNonQuery("UPDATE Activity SET IsActive = 1;");
+                
+                // Stored procedure
+                conn.ExecuteNonQuery("ResetAllActivities", parameters, CommandType.StoredProcedure);
             }
 ```
 
