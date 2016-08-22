@@ -45,6 +45,43 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             }
 ```
 
+### Update a record
+```C#
+            read.Name = "Read Only";
+            
+            var parameters = new Dictionary<string, object>() { { "Id", 123 } };
+            var skipFieldsOnUpdate = new[] { "Id" };
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                // Specify which fields to skip when updating e.g. identity columns.
+                conn.Update(read, parameters, skipFieldsOnUpdate);
+            }
+```
+
+### Delete a record
+```C#
+            var parameters = new Dictionary<string, object>() { { "Id", 123 } };
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Delete<Activity>(parameters);
+            }
+```
+
+### Update a record
+```C#
+            read.Name = "Read Only";
+            
+            var parameters = new Dictionary<string, object>() { { "IsActive", true } };
+            var skipFieldsOnUpdate = new[] { "Id" };
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Update(read, parameters, skipFieldsOnUpdate);
+            }
+```
+
 1. Nuget package
 2. Appveyor
 3. Documentation
