@@ -111,4 +111,5 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 4. Unsupported fields
 5. Table name for generic classes
 6. GetSqlWhereAssignment - null string treatment
+7. Describe parameters
         
