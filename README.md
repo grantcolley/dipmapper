@@ -97,6 +97,14 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             }
 ```
 
+### Execute Non Query
+```C#
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.ExecuteNonQuery("UPDATE Activity SET IsActive = 1;");
+            }
+```
+
 1. Nuget package
 2. Appveyor
 3. Documentation
