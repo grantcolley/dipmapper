@@ -210,7 +210,7 @@ IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName
 
 ## Rermarks
 ###Unsupported Fields
-When building the SQL statements, DipMapper skips non-public properties and properties that are either classes (except for strings), interfaces, lists or arrays.
+DipMapper uses reflection to generate the SQL statements for the desired action. It will skip non-public properties and properties that are either classes (except for strings), interfaces, lists or arrays.
 
 *For example*
 ```C#
