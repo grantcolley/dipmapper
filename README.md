@@ -113,6 +113,20 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             }
 ```
 
+## IDbConnection Extensions
+- Single<T>(Dictionary<string, object> parameters, IDbTransaction transaction, bool closeAndDisposeConnection)
+- Select<T>(Dictionary<string, object> parameters, IDbTransaction transaction, bool closeAndDisposeConnection, bool optimiseObjectCreation)
+- Insert<T>(T target, string identityField, IEnumerable<string> skipOnCreateFields, IDbTransaction transaction, bool closeAndDisposeConnection)
+- Update<T>(T target, Dictionary<string, object> parameters, IEnumerable<string> skipOnUpdateFields, IDbTransaction transaction, bool closeAndDisposeConnection = false)
+- Delete<T>(Dictionary<string, object> parameters, IDbTransaction transaction, bool closeAndDisposeConnection)
+- ExecuteNonQuery(string sql, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection)
+- ExecuteScalar(string sql, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection)
+- ExecuteSql<T>(string sql, IDbTransaction transaction, bool closeAndDisposeConnection, bool optimiseObjectCreation)
+- ExecuteProcedure<T>(string procedureName, Dictionary<string, object> parameters, IDbTransaction transaction, bool closeAndDisposeConnection, bool optimiseObjectCreation)
+
+## Parameters
+
+
 1. Nuget package
 2. Cache dynamic methods for optimisation
 3. Current support for SQL Server only
