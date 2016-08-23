@@ -115,24 +115,40 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 
 ## IDbConnection Extensions
 ```C# 
-Single<T>(Dictionary<string, object> parameters, IDbTransaction transaction, bool closeAndDisposeConnection)
+T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
 ```
 
-```C#Select<T>(Dictionary<string, object> parameters, IDbTransaction transaction, bool closeAndDisposeConnection, bool optimiseObjectCreation)```
+```C#
+IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false)
+```
 
-`Insert<T>(T target, string identityField, IEnumerable<string> skipOnCreateFields, IDbTransaction transaction, bool closeAndDisposeConnection)`
+```C#
+T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+```
 
-`Update<T>(T target, Dictionary<string, object> parameters, IEnumerable<string> skipOnUpdateFields, IDbTransaction transaction, bool closeAndDisposeConnection)`
+```C#
+int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+```
 
-`Delete<T>(Dictionary<string, object> parameters, IDbTransaction transaction, bool closeAndDisposeConnection)`
+```C#
+int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+```
 
-`ExecuteNonQuery(string sql, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection)`
+```C#
+int ExecuteNonQuery(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+```
 
-`ExecuteScalar(string sql, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection)`
+```C#
+object ExecuteScalar(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+```
 
-`ExecuteSql<T>(string sql, IDbTransaction transaction, bool closeAndDisposeConnection, bool optimiseObjectCreation)`
+```C#
+IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false)
+```
 
-`ExecuteProcedure<T>(string procedureName, Dictionary<string, object> parameters, IDbTransaction transaction, bool closeAndDisposeConnection, bool optimiseObjectCreation)`
+```C#
+IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false)
+```
 
 ## Parameters
 
