@@ -23,6 +23,16 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
                 // Insert a record passing in the identity field name.
                 read = conn.Insert(read, "Id");
             }
+            
+            // Insert retuns the object fully populated including auto-generated identifier value.
+            Assert.AreEqual(read.Id, 1)
+```
+
+*SQL generated*
+```sql
+INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) 
+VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);
+SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id = SCOPE_IDENTITY();
 ```
 
 ### Select a single record
@@ -35,6 +45,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             }
 ```
 
+*SQL generated*
+```sql
+SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@_Id;
+```
+
 ### Select many records
 ```C#
             var parameters = new Dictionary<string, object>() { { "IsActive", true } };
@@ -43,6 +58,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             {
                 var activities = conn.Select<Activity>(parameters);
             }
+```
+
+*SQL generated*
+```sql
+SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@_IsActive;
 ```
 
 ### Update a record
@@ -59,6 +79,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             }
 ```
 
+*SQL generated*
+```sql
+UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@_Id;
+```
+
 ### Delete a record
 ```C#
             var parameters = new Dictionary<string, object>() { { "Id", 123 } };
@@ -67,6 +92,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             {
                 conn.Delete<Activity>(parameters);
             }
+```
+
+*SQL generated*
+```sql
+DELETE FROM Activity WHERE Id=@_Id;
 ```
 
 ### Execute SQL
@@ -114,50 +144,137 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 ```
 
 ## IDbConnection Extensions
+DipMapper provides the following extentions to IDbConnection.
+
 ```C# 
-T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, 
+                        IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
 ```
 
 ```C#
-IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false)
+IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, 
+                        IDbTransaction transaction = null, bool closeAndDisposeConnection = false,
+                        bool optimiseObjectCreation = false)
 ```
 
 ```C#
-T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, 
+                        IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
 ```
 
 ```C#
-int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, 
+                        IEnumerable<string> skipOnUpdateFields = null, IDbTransaction transaction = null, 
+                        bool closeAndDisposeConnection = false)
 ```
 
 ```C#
-int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, 
+                        IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
 ```
 
 ```C#
-int ExecuteNonQuery(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+int ExecuteNonQuery(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, 
+                        CommandType commandType = CommandType.Text, IDbTransaction transaction = null, 
+                        bool closeAndDisposeConnection = false)
 ```
 
 ```C#
-object ExecuteScalar(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+object ExecuteScalar(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, 
+                        CommandType commandType = CommandType.Text, IDbTransaction transaction = null, 
+                        bool closeAndDisposeConnection = false)
 ```
 
 ```C#
-IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false)
+IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, 
+                        bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false)
 ```
 
 ```C#
-IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false)
+IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, 
+                        Dictionary<string, object> parameters = null, IDbTransaction transaction = null, 
+                        bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false)
 ```
 
-## Parameters
+## Parameter Description and Usage
+- **Dictionary\<string, object> parameters**. List of key value pairs where the key is the field name.  
+- **IDbTransaction transaction**. Optional.
+- **bool closeAndDisposeConnection**. Indicates whether to close the connection and dispose it on completion.
+- **bool optimiseObjectCreation**. A flag to indicate whether to use a DynamicMethod emitting IL to create objects of a given type for the results of a query. The DynamicMethod is cached for re-use and can offer better performance when creating objects for large recordsets of a specified type. If false (default) then *Activator.CreateInstance\<T>()* is used instead for object creation.
+- **T target**. The target object to update or insert.
+- **string identityField**. The identity field which is expected to be auto-incremented by the database on insert. 
+- **IEnumerable\<string> skipOnCreateFields**. Fields to not insert when creating a record. Typically these would be fields where defaults by the database is preferred on creation.
+- **IEnumerable\<string> skipOnUpdateFields**. Fields to not update when updating a record. Typically these can be read-only fields that shouldn't be updated.
+- **string sql**. SQL statement or stored procedure name, depending on the specified command type.
+- **CommandType commandType**. Indicates whether to execute a SQL statement or stored procedure.
 
+## Rermarks
+###Unsupported Fields
+DipMapper uses reflection to generate the SQL statements for the desired action. It will skip non-public properties and properties that are either classes (except for strings), interfaces, lists or arrays.
 
-1. Nuget package
-2. Cache dynamic methods for optimisation
-3. Current support for SQL Server only
-4. Unsupported fields
-5. Table name for generic classes
-6. GetSqlWhereAssignment - null string treatment
-7. Describe parameters
-        
+*For example*
+```C#
+    public class Activity<T>
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public double Level { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime Created { get; set; }
+        public DateTime? Updated { get; set; }
+        public ActivityTypeEnum ActivityType { get; set; }
+
+        // Supported by DipMapper only if T is a value type.
+        public T GenericProperty { get; set; }
+
+        // Not supported by DipMapper.
+        public Activity<T> ParentActivity { get; set; }
+        public IEnumerable<Activity<T>> Activities_1 { get; set; }
+        public IList<Activity<T>> Activities_2 { get; set; }
+        public T[] GroupIds { get; set; }
+        internal string Description { get; set; }
+        protected int AssociatedActivityId { get; set; }
+        private int ParentActivityId { get; set; }
+    }
+    
+    var parameters = new Dictionary<string, object>() { { "Id", 123 } };
+            
+    using (var conn = new SqlConnection(connectionString))
+    {
+        var admin = conn.Single<Activity<Admin>>(parameters);
+    }
+    
+    // The following sql is generated.
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@_Id;
+```
+
+### Generic Classes
+When working with a generic class the table name will be the specified type.
+
+*For example*
+```C#
+    var admin = conn.Single<Activity<Admin>>(parameters);
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@_Id;
+    
+    var admin = conn.Single<Activity<Int32>>(parameters);
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=@_Id;    
+```
+
+### Where Assignments
+Paremeters with values are assigned with `=` whereas null parameters are assigned with `is`.
+
+> **_NOTE:_**
+> Empty string values will be treated as null. 
+
+```C#
+    var parameters = new Dictionary<string, object>() { { "IsActive", true } };
+    var activities = conn.Select<Activity>(parameters);
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@_IsActive;
+
+    var parameters = new Dictionary<string, object>() { { "Updated", null } };
+    var activities = conn.Select<Activity>(parameters);
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Updated is NULL;
+```
+
+## Limitations
+Currently DipMapper only supports SqlConnection, however, it can be extended to support OleDbConnection, OdbcConnection and OracleConnection.
