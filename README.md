@@ -115,7 +115,8 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 
 ## IDbConnection Extensions
 ```C# 
-T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, 
+                        IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
 ```
 
 ```C#
