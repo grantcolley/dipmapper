@@ -137,8 +137,8 @@ int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> para
 ```
 
 ```C#
-int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, 
-                        bool closeAndDisposeConnection = false)
+int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, 
+                        IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
 ```
 
 ```C#
@@ -164,7 +164,17 @@ IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName
                         bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false)
 ```
 
-## Parameters
+## Parameter Description and Usage
+- **Dictionary<string, object> parameters**. List of key value pairs where the key is the field name.  
+- **IDbTransaction transaction**. Optional.
+- **bool closeAndDisposeConnection**. Indicates whether to close the connection and dispose it on completion.
+- **bool optimiseObjectCreation**.
+- **T target**.
+- **string identityField**. The identity field which is expected to be auto-incremented by the database on insert. 
+- **IEnumerable<string> skipOnCreateFields**. Fields to not update when inserting a record. Typically these would be fields where defaults by the database is preferred on creation.
+- **IEnumerable<string> skipOnUpdateFields**.
+- **string sql**. SQL statement or stored procedure name, depending on the specified command type.
+- **CommandType commandType**. Indicates whether to execute a SQL statement or stored procedure.
 
 
 1. Nuget package
