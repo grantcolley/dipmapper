@@ -168,11 +168,11 @@ IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName
 - **Dictionary\<string, object> parameters**. List of key value pairs where the key is the field name.  
 - **IDbTransaction transaction**. Optional.
 - **bool closeAndDisposeConnection**. Indicates whether to close the connection and dispose it on completion.
-- **bool optimiseObjectCreation**. A flag to indicate whether to create a DynamicMethod which produces compiled IL for creating objects for the resultset of a query. The DynamicMethod is cached for re-use. If false or ommited (default is false) then Activator.CreateInstance<T>() is used for object creation. 
+- **bool optimiseObjectCreation**. A flag to indicate whether to create a DynamicMethod which produces compiled IL for creating objects for the resultset of a query. The DynamicMethod is cached for re-use. If false or ommited (default is false) then Activator.CreateInstance\<T>() is used for object creation. 
 - **T target**. The target object to update or insert.
 - **string identityField**. The identity field which is expected to be auto-incremented by the database on insert. 
-- **IEnumerable<string> skipOnCreateFields**. Fields to not insert when creating a record. Typically these would be fields where defaults by the database is preferred on creation.
-- **IEnumerable<string> skipOnUpdateFields**. Fields to not update when updating a record. Typically these would be read-only fields that shouldn't be updated.
+- **IEnumerable\<string> skipOnCreateFields**. Fields to not insert when creating a record. Typically these would be fields where defaults by the database is preferred on creation.
+- **IEnumerable\<string> skipOnUpdateFields**. Fields to not update when updating a record. Typically these would be read-only fields that shouldn't be updated.
 - **string sql**. SQL statement or stored procedure name, depending on the specified command type.
 - **CommandType commandType**. Indicates whether to execute a SQL statement or stored procedure.
 
