@@ -263,6 +263,9 @@ When working with a generic class the table name will be the specified type.
 ### Where Assignments
 Paremeters with values are assigned with `=` whereas null parameters are assigned with `is`.
 
+> **_NOTE:_**
+> Empty string values will be treated as null. 
+
 ```C#
     var parameters = new Dictionary<string, object>() { { "IsActive", true } };
     var activities = conn.Select<Activity>(parameters);
