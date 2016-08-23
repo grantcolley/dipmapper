@@ -165,7 +165,7 @@ IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName
 ```
 
 ## Parameter Description and Usage
-- **Dictionary<string, object> parameters**. List of key value pairs where the key is the field name.  
+- **Dictionary\<string, object> parameters**. List of key value pairs where the key is the field name.  
 - **IDbTransaction transaction**. Optional.
 - **bool closeAndDisposeConnection**. Indicates whether to close the connection and dispose it on completion.
 - **bool optimiseObjectCreation**. A flag to indicate whether to create a DynamicMethod which produces compiled IL for creating objects for the resultset of a query. The DynamicMethod is cached for re-use. If false or ommited (default is false) then Activator.CreateInstance<T>() is used for object creation. 
