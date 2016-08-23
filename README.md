@@ -23,6 +23,16 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
                 // Insert a record passing in the identity field name.
                 read = conn.Insert(read, "Id");
             }
+            
+            // Insert retuns the object fully populated including auto-generated identifier value.
+            Assert.AreEqual(read.Id, 1)
+```
+
+*SQL generated*
+```sql
+INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) 
+VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);
+SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id = SCOPE_IDENTITY();
 ```
 
 ### Select a single record
@@ -35,6 +45,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             }
 ```
 
+*SQL generated*
+```sql
+SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@_Id;
+```
+
 ### Select many records
 ```C#
             var parameters = new Dictionary<string, object>() { { "IsActive", true } };
@@ -43,6 +58,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             {
                 var activities = conn.Select<Activity>(parameters);
             }
+```
+
+*SQL generated*
+```sql
+SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@_IsActive;
 ```
 
 ### Update a record
@@ -59,6 +79,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             }
 ```
 
+*SQL generated*
+```sql
+UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@_Id;
+```
+
 ### Delete a record
 ```C#
             var parameters = new Dictionary<string, object>() { { "Id", 123 } };
@@ -67,6 +92,11 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             {
                 conn.Delete<Activity>(parameters);
             }
+```
+
+*SQL generated*
+```sql
+DELETE FROM Activity WHERE Id=@_Id;
 ```
 
 ### Execute SQL
