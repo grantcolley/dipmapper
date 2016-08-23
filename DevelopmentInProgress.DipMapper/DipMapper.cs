@@ -127,7 +127,7 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>The number of records affected.</returns>
-        public static int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+        public static int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             if (skipOnUpdateFields == null)
             {
@@ -149,7 +149,7 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>The number of records affected.</returns>
-        public static int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+        public static int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             var sql = GetSqlDelete<T>(parameters);
             var extendedParameters = GetExtendedParameters<T>(parameters);
