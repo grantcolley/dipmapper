@@ -15,7 +15,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             ParentActivityId = 5;
         }
 
-        // Supported by DipMap ORM
+        // Supported by DipMaper
         public int Id { get; set; }
         public string Name { get; set; }
         public double Level { get; set; }
@@ -24,10 +24,10 @@ namespace DevelopmentInProgress.DipMapper.Test
         public DateTime? Updated { get; set; }
         public ActivityTypeEnum ActivityType { get; set; }
 
-        // Supported by DipMap ORM if T is a value type.
+        // Supported by DipMapper if T is a value type.
         public T GenericProperty { get; set; }
 
-        // Not supported by DipMap ORM
+        // Not supported by DipMapper
         public GenericActivity<T> ParentActivity { get; set; }
         public IEnumerable<GenericActivity<T>> Activities_1 { get; set; }
         public IList<GenericActivity<T>> Activities_2 { get; set; }

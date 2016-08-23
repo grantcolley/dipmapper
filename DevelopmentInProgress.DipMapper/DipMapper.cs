@@ -172,7 +172,9 @@ namespace DevelopmentInProgress.DipMapper
             {
                 var command = GetCommand(conn, sql, parameters, commandType, transaction);
                 OpenConnection(conn);
-                return command.ExecuteNonQuery();
+                var recordsAffected = command.ExecuteNonQuery();
+                command.Dispose();
+                return recordsAffected;
             }
             finally
             {
@@ -199,7 +201,9 @@ namespace DevelopmentInProgress.DipMapper
             {
                 var command = GetCommand(conn, sql, parameters, commandType, transaction);
                 OpenConnection(conn);
-                return command.ExecuteScalar();
+                var result = command.ExecuteScalar();
+                command.Dispose();
+                return result;
             }
             finally
             {
