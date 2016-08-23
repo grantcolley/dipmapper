@@ -144,6 +144,8 @@ DELETE FROM Activity WHERE Id=@_Id;
 ```
 
 ## IDbConnection Extensions
+DipMapper provides the following extentions to IDbConnection.
+
 ```C# 
 T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, 
                         IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
@@ -208,11 +210,68 @@ IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName
 
 ## Rermarks
 ###Unsupported Fields
+When building the SQL statements, DipMapper skips non-public properties and properties that are either classes (except for strings), interfaces, lists or arrays.
+
+*For example*
+```C#
+    public class Activity<T>
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public double Level { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime Created { get; set; }
+        public DateTime? Updated { get; set; }
+        public ActivityTypeEnum ActivityType { get; set; }
+
+        // Supported by DipMapper only if T is a value type.
+        public T GenericProperty { get; set; }
+
+        // Not supported by DipMapper.
+        public Activity<T> ParentActivity { get; set; }
+        public IEnumerable<Activity<T>> Activities_1 { get; set; }
+        public IList<Activity<T>> Activities_2 { get; set; }
+        public T[] GroupIds { get; set; }
+        internal string Description { get; set; }
+        protected int AssociatedActivityId { get; set; }
+        private int ParentActivityId { get; set; }
+    }
+    
+    var parameters = new Dictionary<string, object>() { { "Id", 123 } };
+            
+    using (var conn = new SqlConnection(connectionString))
+    {
+        var admin = conn.Single<Activity<Admin>>(parameters);
+    }
+    
+    // The following sql is generated.
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@_Id;
+```
 
 ### Generic Classes
+When working with a generic class the table name will be the specified type.
+
+*For example*
+```C#
+    var admin = conn.Single<Activity<Admin>>(parameters);
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@_Id;
+    
+    var admin = conn.Single<Activity<Int32>>(parameters);
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=@_Id;    
+```
 
 ### Where Assignments
-Null treatment in WHERE assignments
+Paremeters with values are assigned with `=` whereas null parameters are assigned with `is`.
+
+```C#
+    var parameters = new Dictionary<string, object>() { { "IsActive", true } };
+    var activities = conn.Select<Activity>(parameters);
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@_IsActive;
+
+    var parameters = new Dictionary<string, object>() { { "Updated", null } };
+    var activities = conn.Select<Activity>(parameters);
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Updated is NULL;
+```
 
 ## Limitations
 Currently DipMapper only supports SqlConnection, however, it can be extended to support OleDbConnection, OdbcConnection and OracleConnection.
