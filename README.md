@@ -266,6 +266,7 @@ When working with a generic class the table name will be the specified type.
     var admin = conn.Single<Activity<Admin>>(parameters);
     SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@_Id;
     
+    // Unfortunately, this can also backfire. 
     var admin = conn.Single<Activity<Int32>>(parameters);
     SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=@_Id;    
 ```
