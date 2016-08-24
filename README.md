@@ -24,7 +24,8 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
                 read = conn.Insert(read, "Id");
             }
             
-            // Insert retuns the object fully populated including auto-generated identifier value.
+            // Insert retuns the object fully populated including  
+            // auto-generated identifier and other default value.
             Assert.AreEqual(read.Id, 1)
 ```
 
@@ -74,7 +75,7 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 
             using (var conn = new SqlConnection(connectionString))
             {
-                // Specify which fields to skip when updating e.g. identity columns.
+                // Specify which fields to skip when updating e.g. identity column or read-only fields.
                 conn.Update(read, parameters, skipFieldsOnUpdate);
             }
 ```
