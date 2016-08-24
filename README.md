@@ -270,7 +270,7 @@ When working with a generic class the table name will be the specified type.
     SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=@_Id;    
 ```
 
-### Where Assignments
+### Building the WHERE Clause
 Paremeters with values are assigned with `=` whereas null parameters are assigned with `is`.
 
 > **_NOTE:_**
