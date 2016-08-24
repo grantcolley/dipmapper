@@ -272,7 +272,7 @@ When working with a generic class the table name will be the specified type.
 ```
 
 ### Building the WHERE Clause
-Paremeters with values are assigned with `=` whereas null parameters are assigned with `is`.
+Paremeters with values are assigned using `=` whereas null parameters are assigned using `is`.
 
 > **_NOTE:_**
 > Empty string values will be treated as null. 
