@@ -24,7 +24,8 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
                 read = conn.Insert(read, "Id");
             }
             
-            // Insert retuns the object fully populated including auto-generated identifier value.
+            // Insert retuns the object fully populated including  
+            // auto-generated identifier and other default value.
             Assert.AreEqual(read.Id, 1)
 ```
 
@@ -74,7 +75,7 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 
             using (var conn = new SqlConnection(connectionString))
             {
-                // Specify which fields to skip when updating e.g. identity columns.
+                // Specify which fields to skip when updating e.g. identity column or read-only fields.
                 conn.Update(read, parameters, skipFieldsOnUpdate);
             }
 ```
@@ -197,15 +198,24 @@ IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName
 ```
 
 ## Parameter Description and Usage
-- **Dictionary\<string, object> parameters**. List of key value pairs where the key is the field name.  
-- **IDbTransaction transaction**. Optional.
-- **bool closeAndDisposeConnection**. Indicates whether to close the connection and dispose it on completion.
-- **bool optimiseObjectCreation**. A flag to indicate whether to use a DynamicMethod emitting IL to create objects of a given type for the results of a query. The DynamicMethod is cached for re-use and can offer better performance when creating objects for large recordsets of a specified type. If false (default) then *Activator.CreateInstance\<T>()* is used instead for object creation.
+- **Dictionary\<string, object> parameters**.List of key value pairs where the key is the field name.  
+
+- **IDbTransaction transaction**. Transaction support.
+
+- **bool closeAndDisposeConnection**. Indicates whether to close the connection and dispose it on completion of database execution. False by default. Typically used when the connection is not created within a `using` block. Do not set to true when using a transaction.
+
+- **bool optimiseObjectCreation**. A flag to indicate whether to use a *DynamicMethod* emitting IL to create objects of a given type for the results of a query. The *DynamicMethod* delegate is cached for re-use and can offer better performance when creating objects for large recordsets of a specified type. If false (default) then `Activator.CreateInstance\<T>()` is used instead for object creation.
+
 - **T target**. The target object to update or insert.
-- **string identityField**. The identity field which is expected to be auto-incremented by the database on insert. 
-- **IEnumerable\<string> skipOnCreateFields**. Fields to not insert when creating a record. Typically these would be fields where defaults by the database is preferred on creation.
-- **IEnumerable\<string> skipOnUpdateFields**. Fields to not update when updating a record. Typically these can be read-only fields that shouldn't be updated.
+ 
+- **string identityField**. The identity field which is excluded from the SQL generated for the *INSERT* statement. 
+
+- **IEnumerable\<string> skipOnCreateFields**. Additional fields to exclude from the SQL generated not insert the *INSERT* statement. Typically these would be fields where default values set by the database is preferred.
+
+- **IEnumerable\<string> skipOnUpdateFields**. Fields to exclude from the SQL generated for the *UPDATE* statement. Typically these will be read-only fields that shouldn't be updated.
+ 
 - **string sql**. SQL statement or stored procedure name, depending on the specified command type.
+
 - **CommandType commandType**. Indicates whether to execute a SQL statement or stored procedure.
 
 ## Rermarks
@@ -256,12 +266,13 @@ When working with a generic class the table name will be the specified type.
     var admin = conn.Single<Activity<Admin>>(parameters);
     SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@_Id;
     
+    // Unfortunately, this can also backfire. 
     var admin = conn.Single<Activity<Int32>>(parameters);
     SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=@_Id;    
 ```
 
-### Where Assignments
-Paremeters with values are assigned with `=` whereas null parameters are assigned with `is`.
+### Building the WHERE Clause
+Paremeters with values are assigned using `=` whereas null parameters are assigned using `is`.
 
 > **_NOTE:_**
 > Empty string values will be treated as null. 
