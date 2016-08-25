@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("DevelopmentInProgress.DipMapper")]
-[assembly: AssemblyDescription("A flyweight ORM")]
+[assembly: AssemblyTitle("DipMapper")]
+[assembly: AssemblyDescription("A flyweight object mapper")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Development In Progress Ltd")]
-[assembly: AssemblyProduct("DevelopmentInProgress.DipMapper")]
-[assembly: AssemblyCopyright("Copyright ©  2016")]
+[assembly: AssemblyProduct("DipMapper")]
+[assembly: AssemblyCopyright("Copyright © Development In Progress Ltd 2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
