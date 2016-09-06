@@ -95,7 +95,7 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
-        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField = "", IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             if (skipOnCreateFields == null)
             {
