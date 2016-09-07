@@ -112,7 +112,7 @@ namespace DevelopmentInProgress.DipMapper
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, skipOnCreateFields);
             var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnCreateFields);
-            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection, false).Single();
+            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection, false).SingleOrDefault();
             return result;
         }
 
