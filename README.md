@@ -118,7 +118,7 @@ DELETE FROM Activity WHERE Id=@_Id;
 
             using (var conn = new SqlConnection(connectionString))
             {
-                var activities = activities = conn.ExecuteProcedure<Activity>("GetActivities", parameters);
+                var activities = conn.ExecuteProcedure<Activity>("GetActivities", parameters);
             }
 ```
 
@@ -161,8 +161,9 @@ IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> par
 ```
 
 ```C#
-T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> skipOnCreateFields = null, 
-                        IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<string> 
+                        skipOnCreateFields = null, IDbTransaction transaction = null, 
+                        bool closeAndDisposeConnection = false)
 ```
 
 ```C#
@@ -206,7 +207,7 @@ IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName
 
 - **bool closeAndDisposeConnection**. Indicates whether to close the connection and dispose it on completion of database execution. False by default. Typically used when the connection is not created within a `using` block. Do not set to true when using a transaction.
 
-- **bool optimiseObjectCreation**. A flag to indicate whether to use a *DynamicMethod* emitting IL to create objects of a given type for the results of a query. The *DynamicMethod* delegate is cached for re-use and can offer better performance when creating objects for large recordsets of a specified type. If false (default) then `Activator.CreateInstance\<T>()` is used instead for object creation.
+- **bool optimiseObjectCreation**. A flag to indicate whether to use a *DynamicMethod* emitting IL to create objects of a given type for the results of a query. The *DynamicMethod* delegate is cached for re-use and can offer better performance when creating objects for large recordsets of a specified type. If false (default) then `Activator.CreateInstance<T>()` is used instead for object creation.
 
 - **T target**. The target object to update or insert.
  
