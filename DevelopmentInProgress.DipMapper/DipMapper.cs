@@ -168,16 +168,19 @@ namespace DevelopmentInProgress.DipMapper
         /// <returns>The number of records affected.</returns>
         public static int ExecuteNonQuery(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
+            IDbCommand command = null;
+
             try
             {
-                var command = GetCommand(conn, sql, parameters, commandType, transaction);
+                command = GetCommand(conn, sql, parameters, commandType, transaction);
                 OpenConnection(conn);
                 var recordsAffected = command.ExecuteNonQuery();
-                command.Dispose();
                 return recordsAffected;
             }
             finally
             {
+                CloseAndDispose(command);
+
                 if (closeAndDisposeConnection)
                 {
                     CloseAndDispose(conn);
@@ -197,16 +200,19 @@ namespace DevelopmentInProgress.DipMapper
         /// <returns>A scalar value resulting from executing the SQL statement or stored procedure.</returns>
         public static object ExecuteScalar(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
+            IDbCommand command = null;
+
             try
             {
-                var command = GetCommand(conn, sql, parameters, commandType, transaction);
+                command = GetCommand(conn, sql, parameters, commandType, transaction);
                 OpenConnection(conn);
                 var result = command.ExecuteScalar();
-                command.Dispose();
                 return result;
             }
             finally
             {
+                CloseAndDispose(command);
+
                 if (closeAndDisposeConnection)
                 {
                     CloseAndDispose(conn);
@@ -563,10 +569,11 @@ namespace DevelopmentInProgress.DipMapper
             var result = new List<T>();
 
             IDataReader reader = null;
+            IDbCommand command = null;
 
             try
             {
-                var command = GetCommand(conn, sql, parameters, commandType, transaction);
+                command = GetCommand(conn, sql, parameters, commandType, transaction);
                 OpenConnection(conn);
                 reader = command.ExecuteReader();
 
@@ -580,15 +587,9 @@ namespace DevelopmentInProgress.DipMapper
             }
             finally
             {
-                if (reader != null)
-                {
-                    if (!reader.IsClosed)
-                    {
-                        reader.Close();
-                    }
+                CloseAndDispose(reader);
 
-                    reader.Dispose();
-                }
+                CloseAndDispose(command);
 
                 if (closeAndDisposeConnection)
                 {
@@ -615,6 +616,27 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             return t;
+        }
+
+        private static void CloseAndDispose(IDataReader reader)
+        {
+            if (reader != null)
+            {
+                if (!reader.IsClosed)
+                {
+                    reader.Close();
+                }
+
+                reader.Dispose();
+            }
+        }
+
+        private static void CloseAndDispose(IDbCommand command)
+        {
+            if (command != null)
+            {
+                command.Dispose();
+            }
         }
 
         private static void CloseAndDispose(IDbConnection conn)
