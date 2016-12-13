@@ -47,7 +47,11 @@ namespace DevelopmentInProgress.DipMapper
 
         internal enum ConnType
         {
-            MSSQL
+            MSSQL,
+            MySql,
+            Odbc,
+            OleDb,
+            Oracle
         }
 
         /// <summary>
@@ -77,9 +81,10 @@ namespace DevelopmentInProgress.DipMapper
         /// <returns>A list of the specified type.</returns>
         public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
+            var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlSelect<T>(propertyInfos, parameters);
-            var extendedParameters = GetExtendedParameters<T>(parameters);
+            var sql = GetSqlSelect<T>(connType, propertyInfos, parameters);
+            var extendedParameters = GetExtendedParameters<T>(connType, parameters);
             var results = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
@@ -111,7 +116,7 @@ namespace DevelopmentInProgress.DipMapper
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, skipOnCreateFields);
-            var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnCreateFields);
+            var extendedParameters = GetExtendedParameters(target, connType, propertyInfos, skipOnCreateFields);
             var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection, false).SingleOrDefault();
             return result;
         }
@@ -134,9 +139,10 @@ namespace DevelopmentInProgress.DipMapper
                 skipOnUpdateFields = new List<string>();
             }
 
+            var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlUpdate<T>(propertyInfos, parameters, skipOnUpdateFields);
-            var extendedParameters = GetExtendedParameters(target, propertyInfos, skipOnUpdateFields, parameters);
+            var sql = GetSqlUpdate<T>(connType, propertyInfos, parameters, skipOnUpdateFields);
+            var extendedParameters = GetExtendedParameters(target, connType, propertyInfos, skipOnUpdateFields, parameters);
             return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
         }
 
@@ -151,8 +157,9 @@ namespace DevelopmentInProgress.DipMapper
         /// <returns>The number of records affected.</returns>
         public static int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
-            var sql = GetSqlDelete<T>(parameters);
-            var extendedParameters = GetExtendedParameters<T>(parameters);
+            var connType = GetConnType(conn);
+            var sql = GetSqlDelete<T>(connType, parameters);
+            var extendedParameters = GetExtendedParameters<T>(connType, parameters);
             return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
         }
 
@@ -312,14 +319,14 @@ namespace DevelopmentInProgress.DipMapper
             return typeof(T).Name;
         }
 
-        internal static string GetSqlSelect<T>(IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters = null)
+        internal static string GetSqlSelect<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters = null)
         {
-            return "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + GetSqlWhereClause(parameters) + ";";
+            return "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + GetSqlWhereClause(connType, parameters) + ";";
         }
 
         internal static string GetSqlInsert<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, IEnumerable<string> skipOnCreateFields = null)
         {
-            string insertSql = "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields(propertyInfos, skipOnCreateFields) + ";";
+            string insertSql = "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields(connType, propertyInfos, skipOnCreateFields) + ";";
 
             if (string.IsNullOrEmpty(identityField))
             {
@@ -330,17 +337,17 @@ namespace DevelopmentInProgress.DipMapper
                    " WHERE " + identityField + " = " + GetIdentitySql(connType) + ";";
         }
 
-        internal static string GetSqlUpdate<T>(IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, IEnumerable<string> skipOnUpdateFields = null)
+        internal static string GetSqlUpdate<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, IEnumerable<string> skipOnUpdateFields = null)
         {
-            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields(propertyInfos, skipOnUpdateFields) + GetSqlWhereClause(parameters) + ";";
+            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields(connType, propertyInfos, skipOnUpdateFields) + GetSqlWhereClause(connType, parameters) + ";";
         }
 
-        internal static string GetSqlDelete<T>(Dictionary<string, object> parameters)
+        internal static string GetSqlDelete<T>(ConnType connType, Dictionary<string, object> parameters)
         {
-            return "DELETE FROM " + GetSqlTableName<T>() + GetSqlWhereClause(parameters) + ";";
+            return "DELETE FROM " + GetSqlTableName<T>() + GetSqlWhereClause(connType, parameters) + ";";
         }
 
-        internal static string GetSqlWhereClause(Dictionary<string, object> parameters)
+        internal static string GetSqlWhereClause(ConnType connType, Dictionary<string, object> parameters)
         {
             if (parameters == null
                 || !parameters.Any())
@@ -352,7 +359,7 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var parameter in parameters)
             {
-                where += parameter.Key + GetSqlWhereAssignment(parameter.Value) + "@_" + parameter.Key + " AND ";
+                where += parameter.Key + GetSqlWhereAssignment(parameter.Value) + GetParameterPrefix(connType, true) + parameter.Key + " AND ";
             }
 
             if (where.EndsWith(" AND "))
@@ -376,7 +383,7 @@ namespace DevelopmentInProgress.DipMapper
             return fields;
         }
 
-        internal static string GetSqlUpdateFields(IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnUpdateFields)
+        internal static string GetSqlUpdateFields(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnUpdateFields)
         {
             string fields = string.Empty;
 
@@ -387,14 +394,14 @@ namespace DevelopmentInProgress.DipMapper
                     continue;
                 }
 
-                fields += propertyInfo.Name + "=@" + propertyInfo.Name + ", ";
+                fields += propertyInfo.Name + "=" + GetParameterPrefix(connType) + propertyInfo.Name + ", ";
             }
 
             fields = fields.Remove(fields.Length - 2, 2);
             return fields;
         }
 
-        internal static string GetSqlInsertFields(IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields)
+        internal static string GetSqlInsertFields(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields)
         {
             string fields = string.Empty;
             string parameters = string.Empty;
@@ -407,7 +414,7 @@ namespace DevelopmentInProgress.DipMapper
                 }
 
                 fields += propertyInfo.Name + ", ";
-                parameters += "@" + propertyInfo.Name + ", ";
+                parameters += GetParameterPrefix(connType) + propertyInfo.Name + ", ";
             }
 
             fields = fields.Remove(fields.Length - 2, 2);
@@ -438,22 +445,24 @@ namespace DevelopmentInProgress.DipMapper
             {
                 case ConnType.MSSQL:
                     return "SCOPE_IDENTITY()";
+                case ConnType.MySql:
+                    return "LAST_INSERT_ID();";
+                default:
+                    throw new NotSupportedException("Connection " + connType.GetType().Name + " not supported.");
             }
-
-            throw new NotImplementedException("Connection " + connType.GetType().Name + " not supported.");
         }
 
-        internal static Dictionary<string, object> GetExtendedParameters<T>(Dictionary<string, object> parameters = null)
+        internal static Dictionary<string, object> GetExtendedParameters<T>(ConnType connType, Dictionary<string, object> parameters = null)
         {
-            return GetExtendedParameters<T>(default(T), null, null, parameters);
+            return GetExtendedParameters<T>(default(T), connType, null, null, parameters);
         }
 
-        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields)
+        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields)
         {
-            return GetExtendedParameters<T>(target, propertyInfos, skipFields, null);
+            return GetExtendedParameters<T>(target, connType, propertyInfos, skipFields, null);
         }
 
-        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields, Dictionary<string, object> parameters)
+        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields, Dictionary<string, object> parameters)
         {
             var extendedParameters = new Dictionary<string, object>();
 
@@ -467,7 +476,7 @@ namespace DevelopmentInProgress.DipMapper
                     }
 
                     var val = propertyInfo.GetValue(target);
-                    extendedParameters.Add("@" + propertyInfo.Name, val ?? DBNull.Value);
+                    extendedParameters.Add(GetParameterPrefix(connType) + propertyInfo.Name, val ?? DBNull.Value);
                 }
             }
 
@@ -478,7 +487,7 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var parameter in parameters)
             {
-                extendedParameters.Add("@_" + parameter.Key, parameter.Value ?? DBNull.Value);
+                extendedParameters.Add(GetParameterPrefix(connType, true) + parameter.Key, parameter.Value ?? DBNull.Value);
             }
 
             return extendedParameters;
@@ -490,8 +499,28 @@ namespace DevelopmentInProgress.DipMapper
             {
                 return ConnType.MSSQL;
             }
+            
+            if (conn.GetType().Name.Equals("OracleConnection"))
+            {
+                return ConnType.Oracle;
+            }
+            
+            if (conn.GetType().Name.Equals("MySqlConnection"))
+            {
+                return ConnType.MySql;
+            }
+            
+            if (conn.GetType().Name.Equals("OdbcConnection"))
+            {
+                return ConnType.Odbc;
+            }
+            
+            if (conn.GetType().Name.Equals("OleDbConnection"))
+            {
+                return ConnType.OleDb;
+            }
 
-            throw new NotImplementedException("Connection " + conn.GetType().Name + " not supported.");
+            throw new NotSupportedException("Connection " + conn.GetType().Name + " not supported.");
         }
 
         internal static Func<T> New<T>(bool optimiseObjectCreation) where T : class, new()
@@ -540,8 +569,15 @@ namespace DevelopmentInProgress.DipMapper
             {
                 return GetSqlCommand((SqlConnection)conn, queryString, parameters, commandType, (SqlTransaction)transaction);
             }
+            if (conn.GetType().Name.Equals("OracleConnection")
+                || conn.GetType().Name.Equals("MySqlConnection")
+                || conn.GetType().Name.Equals("OdbcConnection")
+                || conn.GetType().Name.Equals("OleDbConnection"))
+            {
+                return GetDbCommand(conn, queryString, parameters, commandType, transaction);
+            }
 
-            throw new NotImplementedException("Connection " + conn.GetType().Name + " not supported.");
+            throw new NotSupportedException("Connection " + conn.GetType().Name + " not supported.");
         }
 
         private static SqlCommand GetSqlCommand(SqlConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType, SqlTransaction transaction)
@@ -562,6 +598,32 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             return sqlCommand;
+        }
+
+        private static IDbCommand GetDbCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction)
+        {
+            var command = conn.CreateCommand();
+            command.CommandText = queryString;
+            command.CommandType = commandType;
+
+            if (transaction != null)
+            {
+                command.Transaction = transaction;
+            }
+
+            if (parameters != null)
+            {
+                foreach (var kvp in parameters)
+                {
+                    var parameter = command.CreateParameter();
+                    parameter.ParameterName = kvp.Key;
+                    parameter.Value = kvp.Value;
+                    
+                    command.Parameters.Add(parameter);
+                }
+            }
+
+            return command;
         }
 
         private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection, bool optimiseObjectCreation) where T : class, new()
@@ -616,6 +678,21 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             return t;
+        }
+
+        private static string GetParameterPrefix(ConnType connType, bool isWhereClause = false)
+        {
+            switch (connType)
+            {
+                case ConnType.MSSQL:
+                    return isWhereClause ? "@p" : "@";
+                case ConnType.MySql:
+                    return isWhereClause ? "?p" : "?";
+                case ConnType.Oracle:
+                    return isWhereClause ? ":p" : ":";
+                default:
+                    throw new NotSupportedException("Connection " + connType.GetType().Name + " not supported.");
+            }
         }
 
         private static void CloseAndDispose(IDataReader reader)
