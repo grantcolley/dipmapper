@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Odbc;
 using System.Data.OleDb;
 using System.Data.SqlClient;
 using System.Linq;
@@ -9,7 +8,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace DevelopmentInProgress.DipMapper.Test
 {
     [TestClass]
-    public class DipMapperTest
+    public class DipMapperMSSQLTest
     {
         [TestMethod]
         public void GetPropertyInfos_ExcludeUnsupportedProperties_IncludeGenericProperty()
@@ -140,9 +139,11 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlWhereClause_NoParameters_EmptyWhereClause()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
 
             // Act
-            var sqlWhereClause = DipMapper.GetSqlWhereClause(null);
+            var sqlWhereClause = DipMapper.GetSqlWhereClause(connType, null);
 
             // Assert
             Assert.AreEqual(sqlWhereClause, string.Empty);
@@ -152,6 +153,8 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlWhereClause_WithParameters_WhereClause()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var genericActivity = new GenericActivity<Activity>() {Name = "Activity"};
 
             var parameters = new Dictionary<string, object>();
@@ -164,21 +167,23 @@ namespace DevelopmentInProgress.DipMapper.Test
             parameters.Add("ActivityType", genericActivity.ActivityType);
 
             // Act
-            var sqlWhereClause = DipMapper.GetSqlWhereClause(parameters);
+            var sqlWhereClause = DipMapper.GetSqlWhereClause(connType, parameters);
 
             // Assert
-            Assert.AreEqual(sqlWhereClause, " WHERE Id=@_Id AND Name=@_Name AND Level=@_Level AND IsActive=@_IsActive AND Created=@_Created AND Updated is @_Updated AND ActivityType=@_ActivityType");
+            Assert.AreEqual(sqlWhereClause, " WHERE Id=@pId AND Name=@pName AND Level=@pLevel AND IsActive=@pIsActive AND Created=@pCreated AND Updated is @pUpdated AND ActivityType=@pActivityType");
         }
 
         [TestMethod]
         public void GetSqlInsertFields_SkipIdentityFieldOnly_GetSql()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var skipFields = new List<string>() {"Id"};
 
             // Act
-            var sqlInsertFields = DipMapper.GetSqlInsertFields(propertyInfos, skipFields);
+            var sqlInsertFields = DipMapper.GetSqlInsertFields(connType, propertyInfos, skipFields);
 
             // Assert
             Assert.AreEqual(sqlInsertFields, " (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType)");
@@ -188,11 +193,13 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlInsertFields_SkipMultipleFields_GetSql()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var skipFields = new List<string>() { "Updated", "Id" };            
 
             // Act
-            var sqlInsertFields = DipMapper.GetSqlInsertFields(propertyInfos, skipFields);
+            var sqlInsertFields = DipMapper.GetSqlInsertFields(connType, propertyInfos, skipFields);
 
             // Assert
             Assert.AreEqual(sqlInsertFields, " (Name, Level, IsActive, Created, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @ActivityType)");
@@ -203,34 +210,6 @@ namespace DevelopmentInProgress.DipMapper.Test
         {
             // Arrange
             var conn = new SqlConnection();
-
-            // Act
-            var connType = DipMapper.GetConnType(conn);
-
-            // Assert
-            Assert.AreEqual(connType, DipMapper.ConnType.MSSQL);
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(NotImplementedException))]
-        public void GetConnType_GetForOleDbConnection_NotImplementedException()
-        {
-            // Arrange
-            var conn = new OleDbConnection();
-
-            // Act
-            var connType = DipMapper.GetConnType(conn);
-
-            // Assert
-            Assert.AreEqual(connType, DipMapper.ConnType.MSSQL);
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(NotImplementedException))]
-        public void GetConnType_GetForOdbcConnection_NotImplementedException()
-        {
-            // Arrange
-            var conn = new OdbcConnection();
 
             // Act
             var connType = DipMapper.GetConnType(conn);
@@ -254,14 +233,30 @@ namespace DevelopmentInProgress.DipMapper.Test
         }
 
         [TestMethod]
+        [ExpectedException(typeof(NotSupportedException))]
+        public void GetIdentitySql_SCOPE_IDENTITY_NotSupportedException()
+        {
+            // Arrange
+            var conn = new OleDbConnection();
+            var connType = DipMapper.GetConnType(conn);
+
+            // Act
+            var identitySql = DipMapper.GetIdentitySql(connType);
+
+            // Assert
+        }
+
+        [TestMethod]
         public void GetSqlUpdateFields_SkipIdentityOnUpdateOnly_GetSql()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var skipFields = new List<string>() { "Id" };
 
             // Act
-            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(propertyInfos, skipFields);
+            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(connType, propertyInfos, skipFields);
 
             // Assert
             Assert.AreEqual(sqlUpdateFields, "Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType");
@@ -271,11 +266,13 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlUpdateFields_SkipMultipleFields_GetSql()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var skipFields = new List<string>() { "Id", "Created", "Updated"};
 
             // Act
-            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(propertyInfos, skipFields);
+            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(connType, propertyInfos, skipFields);
 
             // Assert
             Assert.AreEqual(sqlUpdateFields, "Name=@Name, Level=@Level, IsActive=@IsActive, ActivityType=@ActivityType");
@@ -285,10 +282,12 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlSelect_NoParameters()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
 
             // Act
-            var sqlSelect = DipMapper.GetSqlSelect<Activity>(propertyInfos);
+            var sqlSelect = DipMapper.GetSqlSelect<Activity>(connType, propertyInfos);
 
             // Assert
             Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity;");
@@ -298,14 +297,16 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlSelect_WithParameters()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var parameters = new Dictionary<string, object>() {{"Id", 3}};
 
             // Act
-            var sqlSelect = DipMapper.GetSqlSelect<Activity>(propertyInfos, parameters);
+            var sqlSelect = DipMapper.GetSqlSelect<Activity>(connType, propertyInfos, parameters);
 
             // Assert
-            Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@_Id;");
+            Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@pId;");
         }
 
         [TestMethod]
@@ -354,12 +355,14 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlUpdate_WithoutParameters()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var parameters = new Dictionary<string, object>();
             var skipFields = new List<string>();
 
             // Act
-            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(propertyInfos, parameters, skipFields);
+            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, propertyInfos, parameters, skipFields);
 
             // Assert
             Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Id=@Id, Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType;");
@@ -369,40 +372,46 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlUpdate_WithParameters()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var parameters = new Dictionary<string, object>() {{"Id", 5}};
             var skipFields = new List<string>() {"Id"};
 
             // Act
-            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(propertyInfos, parameters, skipFields);
+            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, propertyInfos, parameters, skipFields);
 
             // Assert
-            Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@_Id;");
+            Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@pId;");
         }
 
         [TestMethod]
         public void GetSqlUpdate_SkipFields()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var parameters = new Dictionary<string, object>() { { "Id", 5 } };
             var skipFields = new List<string>() {"Id", "Created", "Updated"};
 
             // Act
-            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(propertyInfos, parameters, skipFields);
+            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, propertyInfos, parameters, skipFields);
 
             // Assert
-            Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, ActivityType=@ActivityType WHERE Id=@_Id;");
+            Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, ActivityType=@ActivityType WHERE Id=@pId;");
         }
 
         [TestMethod]
         public void GetSqlDelete_WithoutParameters()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var parameters = new Dictionary<string, object>();
 
             // Act
-            var deleteSql = DipMapper.GetSqlDelete<Activity>(parameters);
+            var deleteSql = DipMapper.GetSqlDelete<Activity>(connType, parameters);
 
             // Assert
             Assert.AreEqual(deleteSql, "DELETE FROM Activity;");        
@@ -412,33 +421,39 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlDelete_WithParameters()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var parameters = new Dictionary<string, object>() { { "Id", 5 } };
 
             // Act
-            var deleteSql = DipMapper.GetSqlDelete<Activity>(parameters);
+            var deleteSql = DipMapper.GetSqlDelete<Activity>(connType, parameters);
 
             // Assert
-            Assert.AreEqual(deleteSql, "DELETE FROM Activity WHERE Id=@_Id;");
+            Assert.AreEqual(deleteSql, "DELETE FROM Activity WHERE Id=@pId;");
         }
 
         [TestMethod]
         public void GetExtendedParameters_ParametersOnly()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var parameters = new Dictionary<string, object>() { { "Id", 5 } };
 
             // Act
-            var extendedParameters = DipMapper.GetExtendedParameters<Activity>(parameters);
+            var extendedParameters = DipMapper.GetExtendedParameters<Activity>(connType, parameters);
 
             // Assert
             Assert.AreEqual(extendedParameters.Count(), 1);
-            Assert.AreEqual(extendedParameters.ElementAt(0).Key, "@_Id");
+            Assert.AreEqual(extendedParameters.ElementAt(0).Key, "@pId");
         }
 
         [TestMethod]
         public void GetExtendedParameters_PropertyInfosParametersSkipFields()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var parameters = new Dictionary<string, object>() { { "Id", 5 } };
             var skipFields = new List<string>() {"Id"};
@@ -454,7 +469,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             };
 
             // Act
-            var extendedParameters = DipMapper.GetExtendedParameters(activity, propertyInfos, skipFields, parameters);
+            var extendedParameters = DipMapper.GetExtendedParameters(activity, connType, propertyInfos, skipFields, parameters);
 
             // Assert
             Assert.AreEqual(extendedParameters.Count(), 7);
@@ -464,13 +479,15 @@ namespace DevelopmentInProgress.DipMapper.Test
             Assert.AreEqual(extendedParameters.ElementAt(3).Key, "@Created");
             Assert.AreEqual(extendedParameters.ElementAt(4).Key, "@Updated");
             Assert.AreEqual(extendedParameters.ElementAt(5).Key, "@ActivityType");
-            Assert.AreEqual(extendedParameters.ElementAt(6).Key, "@_Id");
+            Assert.AreEqual(extendedParameters.ElementAt(6).Key, "@pId");
         }
 
         [TestMethod]
         public void GetExtendedParameters_PropertyInfosSkipFields()
         {
             // Arrange
+            var conn = new SqlConnection();
+            var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var skipFields = new List<string>() { "Id" };
 
@@ -485,7 +502,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             };
 
             // Act
-            var extendedParameters = DipMapper.GetExtendedParameters(activity, propertyInfos, skipFields);
+            var extendedParameters = DipMapper.GetExtendedParameters(activity, connType, propertyInfos, skipFields);
 
             // Assert
             Assert.AreEqual(extendedParameters.Count(), 6);
