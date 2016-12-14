@@ -289,6 +289,3 @@ Paremeters with values are assigned using `=` whereas null parameters are assign
     var activities = conn.Select<Activity>(parameters);
     SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Updated is NULL;
 ```
-
-## Limitations
-Currently DipMapper only supports SqlConnection, however, it can be extended to support OleDbConnection, OdbcConnection and OracleConnection.
