@@ -50,7 +50,7 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 
 *SQL generated*
 ```sql
-SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@_Id;
+SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@pId;
 ```
 
 ### Select many records
@@ -65,7 +65,7 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 
 *SQL generated*
 ```sql
-SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@_IsActive;
+SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@pIsActive;
 ```
 
 ### Update a record
@@ -84,7 +84,7 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 
 *SQL generated*
 ```sql
-UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@_Id;
+UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@pId;
 ```
 
 ### Delete a record
@@ -99,7 +99,7 @@ UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Creat
 
 *SQL generated*
 ```sql
-DELETE FROM Activity WHERE Id=@_Id;
+DELETE FROM Activity WHERE Id=@pId;
 ```
 
 ### Execute SQL
@@ -258,7 +258,7 @@ DipMapper uses reflection to generate the SQL statements for the desired action.
     }
     
     // The following sql is generated.
-    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@_Id;
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@pId;
 ```
 
 ### Generic Classes
@@ -267,11 +267,11 @@ When working with a generic class the table name will be the specified type.
 *For example*
 ```C#
     var admin = conn.Single<Activity<Admin>>(parameters);
-    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@_Id;
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Admin WHERE Id=@pId;
     
     // Unfortunately, this can also backfire. 
     var admin = conn.Single<Activity<Int32>>(parameters);
-    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=@_Id;    
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType, GenericProperty FROM Int32 WHERE Id=@pId;    
 ```
 
 ### Building the WHERE Clause
@@ -283,7 +283,7 @@ Paremeters with values are assigned using `=` whereas null parameters are assign
 ```C#
     var parameters = new Dictionary<string, object>() { { "IsActive", true } };
     var activities = conn.Select<Activity>(parameters);
-    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@_IsActive;
+    SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@pIsActive;
 
     var parameters = new Dictionary<string, object>() { { "Updated", null } };
     var activities = conn.Select<Activity>(parameters);
