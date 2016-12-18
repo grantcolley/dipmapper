@@ -54,6 +54,34 @@ namespace DevelopmentInProgress.DipMapper
             Oracle
         }
 
+        private static readonly Dictionary<ConnType, IAddDataParameter> AddDataParameters;
+
+        private static readonly Dictionary<ConnType, ISqlIdentitySelect> SqlIdentitySelects;
+
+        /// <summary>
+        /// Static constructor for DipMapper.
+        /// </summary>
+        static DipMapper()
+        {
+            AddDataParameters = new Dictionary<ConnType, IAddDataParameter>
+            {
+                {ConnType.MSSQL, new MSSQLAddDataParameter()},
+                {ConnType.Oracle, new OracleAddDataParameter()},
+                {ConnType.MySql, new DefaultAddDataParameter()},
+                {ConnType.Odbc, new DefaultAddDataParameter()},
+                {ConnType.OleDb, new DefaultAddDataParameter()}
+            };
+
+            SqlIdentitySelects = new Dictionary<ConnType, ISqlIdentitySelect>
+            {
+                {ConnType.MSSQL, new MSSQLSqlSelectWithIdentity()},
+                {ConnType.Oracle, new OracleSqlSelectWithIdentity()},
+                {ConnType.MySql, new MySqlSqlSelectWithIdentity()},
+                {ConnType.Odbc, new DefaultSqlSelectWithIdentity()},
+                {ConnType.OleDb, new DefaultSqlSelectWithIdentity()}
+            };
+        }
+
         /// <summary>
         /// Select a single record and return a populated instance of the specified type.
         /// An exception is thrown if more than one record is returned.
@@ -102,20 +130,39 @@ namespace DevelopmentInProgress.DipMapper
         /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
         public static T Insert<T>(this IDbConnection conn, T target, string identityField = "", IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
+            return Insert(conn, target, identityField, "", skipOnCreateFields, transaction, closeAndDisposeConnection);
+        }
+
+        /// <summary>
+        /// Inserts the object and returns a fully populated instance of the object. 
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="target">The target object.</param>
+        /// <param name="identityField">The name of the identity field of target object.</param>
+        /// <param name="sequenceName">The name of the Oracle sequence field of target object.</param>
+        /// <param name="skipOnCreateFields">Fields to skip when inserting the record. This is used when relying on the database to apply default values when creating a new record.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField = "", string sequenceName = "", IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        {
             if (skipOnCreateFields == null)
             {
                 skipOnCreateFields = new List<string>();
             }
 
-            if (!string.IsNullOrWhiteSpace(identityField)
+            var connType = GetConnType(conn);
+
+            if (connType != ConnType.Oracle
+                && !string.IsNullOrWhiteSpace(identityField)
                 && !skipOnCreateFields.Contains(identityField))
             {
                 ((IList) skipOnCreateFields).Add(identityField);
             }
 
-            var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, skipOnCreateFields);
+            var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, sequenceName, skipOnCreateFields);
             var extendedParameters = GetExtendedParameters(target, connType, propertyInfos, skipOnCreateFields);
             var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection, false).SingleOrDefault();
             return result;
@@ -324,7 +371,7 @@ namespace DevelopmentInProgress.DipMapper
             return "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + GetSqlWhereClause(connType, parameters) + ";";
         }
 
-        internal static string GetSqlInsert<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, IEnumerable<string> skipOnCreateFields = null)
+        internal static string GetSqlInsert<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName, IEnumerable<string> skipOnCreateFields = null)
         {
             string insertSql = "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields(connType, propertyInfos, skipOnCreateFields) + ";";
 
@@ -333,8 +380,7 @@ namespace DevelopmentInProgress.DipMapper
                 return insertSql;
             }
 
-            return insertSql + "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() +
-                   " WHERE " + identityField + " = " + GetIdentitySql(connType) + ";";
+            return SqlIdentitySelects[connType].GetSqlSelectWithIdentity<T>(insertSql, propertyInfos, identityField, sequenceName);
         }
 
         internal static string GetSqlUpdate<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, IEnumerable<string> skipOnUpdateFields = null)
@@ -437,19 +483,6 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             return "=";
-        }
-
-        internal static string GetIdentitySql(ConnType connType)
-        {
-            switch (connType)
-            {
-                case ConnType.MSSQL:
-                    return "SCOPE_IDENTITY()";
-                case ConnType.MySql:
-                    return "LAST_INSERT_ID();";
-                default:
-                    throw new NotSupportedException("Connection " + connType.GetType().Name + " not supported.");
-            }
         }
 
         internal static Dictionary<string, object> GetExtendedParameters<T>(ConnType connType, Dictionary<string, object> parameters = null)
@@ -565,43 +598,6 @@ namespace DevelopmentInProgress.DipMapper
 
         private static IDbCommand GetCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction)
         {
-            if (conn is SqlConnection)
-            {
-                return GetSqlCommand((SqlConnection)conn, queryString, parameters, commandType, (SqlTransaction)transaction);
-            }
-            if (conn.GetType().Name.Equals("OracleConnection")
-                || conn.GetType().Name.Equals("MySqlConnection")
-                || conn.GetType().Name.Equals("OdbcConnection")
-                || conn.GetType().Name.Equals("OleDbConnection"))
-            {
-                return GetDbCommand(conn, queryString, parameters, commandType, transaction);
-            }
-
-            throw new NotSupportedException("Connection " + conn.GetType().Name + " not supported.");
-        }
-
-        private static SqlCommand GetSqlCommand(SqlConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType, SqlTransaction transaction)
-        {
-            var sqlCommand = new SqlCommand(queryString, conn) {CommandType = commandType};
-
-            if (transaction != null)
-            {
-                sqlCommand.Transaction = transaction;
-            }
-
-            if (parameters != null)
-            {
-                foreach (var kvp in parameters)
-                {
-                    sqlCommand.Parameters.AddWithValue(kvp.Key, kvp.Value);
-                }
-            }
-
-            return sqlCommand;
-        }
-
-        private static IDbCommand GetDbCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction)
-        {
             var command = conn.CreateCommand();
             command.CommandText = queryString;
             command.CommandType = commandType;
@@ -615,11 +611,7 @@ namespace DevelopmentInProgress.DipMapper
             {
                 foreach (var kvp in parameters)
                 {
-                    var parameter = command.CreateParameter();
-                    parameter.ParameterName = kvp.Key;
-                    parameter.Value = kvp.Value;
-                    
-                    command.Parameters.Add(parameter);
+                    AddDataParameters[GetConnType(conn)].AddDataParameter(command, kvp.Key, kvp.Value);
                 }
             }
 
@@ -646,6 +638,11 @@ namespace DevelopmentInProgress.DipMapper
                     var t = ReadData<T>(reader, newT(), propertyInfos);
                     result.Add(t);
                 }
+            }
+            catch (Exception ex)
+            {
+                string msg = ex.Message;
+                throw;
             }
             finally
             {
@@ -724,6 +721,95 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             conn.Dispose();
+        }
+
+        internal interface IAddDataParameter
+        {
+            void AddDataParameter(IDbCommand comnmand, string parameterName, object data);
+        }
+
+        internal class DefaultAddDataParameter : IAddDataParameter
+        {
+            public void AddDataParameter(IDbCommand command, string parameterName, object data)
+            {
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = parameterName;
+                parameter.Value = data;
+                command.Parameters.Add(parameter);
+            }
+        }
+
+        internal class MSSQLAddDataParameter : IAddDataParameter
+        {
+            public void AddDataParameter(IDbCommand command, string parameterName, object data)
+            {
+                ((SqlCommand) command).Parameters.AddWithValue(parameterName, data);
+            }
+        }
+
+        internal class OracleAddDataParameter : IAddDataParameter
+        {
+            public void AddDataParameter(IDbCommand command, string parameterName, object data)
+            {
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = parameterName;
+
+                if (data is bool)
+                {
+                    parameter.Value = (bool)data ? 1 : 0;
+                }
+                if (data is Enum)
+                {
+                    parameter.Value = Convert.ChangeType(data, Enum.GetUnderlyingType(data.GetType()));
+                }
+
+                command.Parameters.Add(parameter);
+            }
+        }
+
+        internal interface ISqlIdentitySelect
+        {
+            string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName);
+        }
+
+        internal class DefaultSqlSelectWithIdentity : ISqlIdentitySelect
+        {
+            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName)
+            {
+                return sqlInsert;
+            }
+        }
+
+        internal class MSSQLSqlSelectWithIdentity : ISqlIdentitySelect
+        {
+            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName)
+            {
+                return sqlInsert 
+                    + "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = SCOPE_IDENTITY();";
+            }
+        }
+
+        internal class MySqlSqlSelectWithIdentity : ISqlIdentitySelect
+        {
+            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName)
+            {
+                return sqlInsert 
+                    + "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = LAST_INSERT_ID();";
+            }
+        }
+
+        internal class OracleSqlSelectWithIdentity : ISqlIdentitySelect
+        {
+            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName)
+            {
+                return "DECLARE "
+                       + "   next" + identityField + " NUMBER;"
+                       + "BEGIN "
+                       + " next" + identityField + " := " + sequenceName + ".nextval;"
+                       + sqlInsert + ";"
+                       + " SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = next" + identityField + ";"
+                       + " END;";
+            }
         }
     }
 }
