@@ -124,6 +124,33 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="conn">The database connection.</param>
         /// <param name="target">The target object.</param>
         /// <param name="identityField">The name of the identity field of target object.</param>
+        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField = "") where T : class, new()
+        {
+            return Insert(conn, target, identityField, "", null, null, false);
+        }
+
+        /// <summary>
+        /// Inserts the object and returns a fully populated instance of the object. 
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="target">The target object.</param>
+        /// <param name="identityField">The name of the identity field of target object.</param>
+        /// <param name="sequenceName">The name of the Oracle sequence field of target object.</param>
+        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField = "", string sequenceName = "") where T : class, new()
+        {
+            return Insert(conn, target, identityField, sequenceName, null, null, false);
+        }
+
+        /// <summary>
+        /// Inserts the object and returns a fully populated instance of the object. 
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="target">The target object.</param>
+        /// <param name="identityField">The name of the identity field of target object.</param>
         /// <param name="skipOnCreateFields">Fields to skip when inserting the record. This is used when relying on the database to apply default values when creating a new record.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
