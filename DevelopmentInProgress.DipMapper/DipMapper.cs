@@ -583,6 +583,21 @@ namespace DevelopmentInProgress.DipMapper
             throw new NotSupportedException("Connection " + conn.GetType().Name + " not supported.");
         }
 
+        internal static string GetParameterPrefix(ConnType connType, bool isWhereClause = false)
+        {
+            switch (connType)
+            {
+                case ConnType.MSSQL:
+                    return isWhereClause ? "@p" : "@";
+                case ConnType.MySql:
+                    return isWhereClause ? "?p" : "?";
+                case ConnType.Oracle:
+                    return isWhereClause ? ":p" : ":";
+                default:
+                    throw new NotSupportedException("Connection " + connType.GetType().Name + " not supported.");
+            }
+        }
+
         internal static Func<T> New<T>(bool optimiseObjectCreation) where T : class, new()
         {
             if (optimiseObjectCreation)
@@ -704,21 +719,6 @@ namespace DevelopmentInProgress.DipMapper
             return t;
         }
 
-        private static string GetParameterPrefix(ConnType connType, bool isWhereClause = false)
-        {
-            switch (connType)
-            {
-                case ConnType.MSSQL:
-                    return isWhereClause ? "@p" : "@";
-                case ConnType.MySql:
-                    return isWhereClause ? "?p" : "?";
-                case ConnType.Oracle:
-                    return isWhereClause ? ":p" : ":";
-                default:
-                    throw new NotSupportedException("Connection " + connType.GetType().Name + " not supported.");
-            }
-        }
-
         private static void CloseAndDispose(IDataReader reader)
         {
             if (reader != null)
@@ -829,11 +829,11 @@ namespace DevelopmentInProgress.DipMapper
         {
             public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName)
             {
-                return "DECLARE "
-                       + "   next" + identityField + " NUMBER;"
-                       + "BEGIN "
+                return "DECLARE"
+                       + " next" + identityField + " NUMBER;"
+                       + " BEGIN"
                        + " next" + identityField + " := " + sequenceName + ".nextval;"
-                       + sqlInsert + ";"
+                       + " " + sqlInsert
                        + " SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = next" + identityField + ";"
                        + " END;";
             }
