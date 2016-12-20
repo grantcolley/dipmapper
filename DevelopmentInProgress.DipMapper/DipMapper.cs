@@ -55,8 +55,8 @@ namespace DevelopmentInProgress.DipMapper
         }
 
         private static readonly Dictionary<ConnType, IAddDataParameter> AddDataParameters;
-
         private static readonly Dictionary<ConnType, ISqlIdentitySelect> SqlIdentitySelects;
+        private static readonly Dictionary<ConnType, ISqlInsertFields> SqlInsertFields; 
 
         /// <summary>
         /// Static constructor for DipMapper.
@@ -79,6 +79,15 @@ namespace DevelopmentInProgress.DipMapper
                 {ConnType.MySql, new MySqlSqlSelectWithIdentity()},
                 {ConnType.Odbc, new DefaultSqlSelectWithIdentity()},
                 {ConnType.OleDb, new DefaultSqlSelectWithIdentity()}
+            };
+
+            SqlInsertFields = new Dictionary<ConnType, ISqlInsertFields>()
+            {
+                {ConnType.MSSQL, new DefaultSqlInsertFields()},
+                {ConnType.Oracle, new OracleSqlInsertFields()},
+                {ConnType.MySql, new DefaultSqlInsertFields()},
+                {ConnType.Odbc, new DefaultSqlInsertFields()},
+                {ConnType.OleDb, new DefaultSqlInsertFields()}
             };
         }
 
@@ -179,15 +188,13 @@ namespace DevelopmentInProgress.DipMapper
                 skipOnCreateFields = new List<string>();
             }
 
-            var connType = GetConnType(conn);
-
-            if (connType != ConnType.Oracle
-                && !string.IsNullOrWhiteSpace(identityField)
+            if (!string.IsNullOrWhiteSpace(identityField)
                 && !skipOnCreateFields.Contains(identityField))
             {
                 ((IList) skipOnCreateFields).Add(identityField);
             }
 
+            var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, sequenceName, skipOnCreateFields);
             var extendedParameters = GetExtendedParameters(target, connType, propertyInfos, skipOnCreateFields);
@@ -400,7 +407,7 @@ namespace DevelopmentInProgress.DipMapper
 
         internal static string GetSqlInsert<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName, IEnumerable<string> skipOnCreateFields = null)
         {
-            string insertSql = "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields(connType, propertyInfos, skipOnCreateFields) + ";";
+            string insertSql = "INSERT INTO " + GetSqlTableName<T>() + SqlInsertFields[connType].GetSqlInsertFields<T>(connType, propertyInfos, skipOnCreateFields, identityField) + ";";
 
             if (string.IsNullOrEmpty(identityField))
             {
@@ -472,28 +479,6 @@ namespace DevelopmentInProgress.DipMapper
 
             fields = fields.Remove(fields.Length - 2, 2);
             return fields;
-        }
-
-        internal static string GetSqlInsertFields(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields)
-        {
-            string fields = string.Empty;
-            string parameters = string.Empty;
-
-            foreach (var propertyInfo in propertyInfos)
-            {
-                if (skipOnCreateFields.Contains(propertyInfo.Name))
-                {
-                    continue;
-                }
-
-                fields += propertyInfo.Name + ", ";
-                parameters += GetParameterPrefix(connType) + propertyInfo.Name + ", ";
-            }
-
-            fields = fields.Remove(fields.Length - 2, 2);
-            parameters = parameters.Remove(parameters.Length - 2, 2);
-
-            return " (" + fields + ") VALUES (" + parameters + ")";
         }
 
         internal static string GetSqlWhereAssignment(object value)
@@ -681,11 +666,6 @@ namespace DevelopmentInProgress.DipMapper
                     result.Add(t);
                 }
             }
-            catch (Exception ex)
-            {
-                string msg = ex.Message;
-                throw;
-            }
             finally
             {
                 CloseAndDispose(reader);
@@ -791,6 +771,71 @@ namespace DevelopmentInProgress.DipMapper
                 }
 
                 command.Parameters.Add(parameter);
+            }
+        }
+
+        internal interface ISqlInsertFields
+        {
+            string GetSqlInsertFields<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields, string identityField);
+        }
+
+        internal class DefaultSqlInsertFields : ISqlInsertFields
+        {
+            public string GetSqlInsertFields<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields, string identityField)
+            {
+                string fields = string.Empty;
+                string parameters = string.Empty;
+
+                foreach (var propertyInfo in propertyInfos)
+                {
+                    if (skipOnCreateFields.Contains(propertyInfo.Name))
+                    {
+                        continue;
+                    }
+
+                    fields += propertyInfo.Name + ", ";
+                    parameters += GetParameterPrefix(connType) + propertyInfo.Name + ", ";
+                }
+
+                fields = fields.Remove(fields.Length - 2, 2);
+                parameters = parameters.Remove(parameters.Length - 2, 2);
+
+                return " (" + fields + ") VALUES (" + parameters + ")";
+            }
+        }
+
+        internal class OracleSqlInsertFields : ISqlInsertFields
+        {
+            public string GetSqlInsertFields<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields, string identityField)
+            {
+                string fields = string.Empty;
+                string parameters = string.Empty;
+
+                foreach (var propertyInfo in propertyInfos)
+                {
+                    if (skipOnCreateFields.Contains(propertyInfo.Name)
+                        && (!string.IsNullOrWhiteSpace(identityField)
+                        && propertyInfo.Name != identityField))
+                    {
+                        continue;
+                    }
+
+                    fields += propertyInfo.Name + ", ";
+
+                    if (string.IsNullOrWhiteSpace(identityField))
+                    {
+                        parameters += GetParameterPrefix(connType) + propertyInfo.Name + ", ";
+                    }
+                    else
+                    {
+                        parameters += identityField == propertyInfo.Name ? "next" + propertyInfo.Name + ", " : GetParameterPrefix(connType) + propertyInfo.Name + ", ";
+                    }
+                }
+
+                fields = fields.Remove(fields.Length - 2, 2);
+                parameters = parameters.Remove(parameters.Length - 2, 2);
+
+                return " (" + fields + ") VALUES (" + parameters + ")";
             }
         }
 
