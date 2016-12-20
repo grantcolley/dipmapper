@@ -61,29 +61,31 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlInsertFields_GetSql()
         {
             // Arrange
+            var oracleSqlInsertFields = new DipMapper.OracleSqlInsertFields();
             var conn = new OracleConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<ActivityOra>();
             var skipFields = new List<string>();
 
             // Act
-            var sqlInsertFields = DipMapper.GetSqlInsertFields(connType, propertyInfos, skipFields);
+            var sqlInsertFields = oracleSqlInsertFields.GetSqlInsertFields<ActivityOra>(connType, propertyInfos, skipFields, "Id");
 
             // Assert
-            Assert.AreEqual(sqlInsertFields, " (Id, Name, Status, IsActive, Created, Updated, ActivityType) VALUES (:Id, :Name, :Status, :IsActive, :Created, :Updated, :ActivityType)");
+            Assert.AreEqual(sqlInsertFields, " (Id, Name, Status, IsActive, Created, Updated, ActivityType) VALUES (:nextId, :Name, :Status, :IsActive, :Created, :Updated, :ActivityType)");
         }
 
         [TestMethod]
         public void GetSqlInsertFields_SkipMultipleFields_GetSql()
         {
             // Arrange
+            var oracleSqlInsertFields = new DipMapper.OracleSqlInsertFields();
             var conn = new OracleConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<ActivityOra>();
             var skipFields = new List<string>() { "Updated", "Id" };            
 
             // Act
-            var sqlInsertFields = DipMapper.GetSqlInsertFields(connType, propertyInfos, skipFields);
+            var sqlInsertFields = oracleSqlInsertFields.GetSqlInsertFields<ActivityOra>(connType, propertyInfos, skipFields, "Id");
 
             // Assert
             Assert.AreEqual(sqlInsertFields, " (Name, Status, IsActive, Created, ActivityType) VALUES (:Name, :Status, :IsActive, :Created, :ActivityType)");

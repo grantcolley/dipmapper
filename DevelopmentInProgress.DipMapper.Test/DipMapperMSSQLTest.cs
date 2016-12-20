@@ -61,13 +61,14 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlInsertFields_SkipIdentityFieldOnly_GetSql()
         {
             // Arrange
+            var defaultSqlIdentityFields = new DipMapper.DefaultSqlInsertFields();
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var skipFields = new List<string>() {"Id"};
 
             // Act
-            var sqlInsertFields = DipMapper.GetSqlInsertFields(connType, propertyInfos, skipFields);
+            var sqlInsertFields = defaultSqlIdentityFields.GetSqlInsertFields<Activity>(connType, propertyInfos, skipFields, "Id");
 
             // Assert
             Assert.AreEqual(sqlInsertFields, " (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType)");
@@ -77,13 +78,14 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void GetSqlInsertFields_SkipMultipleFields_GetSql()
         {
             // Arrange
+            var defaultSqlIdentityFields = new DipMapper.DefaultSqlInsertFields();
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
             var skipFields = new List<string>() { "Updated", "Id" };            
 
             // Act
-            var sqlInsertFields = DipMapper.GetSqlInsertFields(connType, propertyInfos, skipFields);
+            var sqlInsertFields = defaultSqlIdentityFields.GetSqlInsertFields<Activity>(connType, propertyInfos, skipFields, "Id");
 
             // Assert
             Assert.AreEqual(sqlInsertFields, " (Name, Level, IsActive, Created, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @ActivityType)");
