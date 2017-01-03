@@ -8,7 +8,7 @@
 //namespace DevelopmentInProgress.DipMapper.Test
 //{
 //    [TestClass]
-//    public class DipMapperMSSQLDataTest
+//    public class DipMapperMsSqlDataTest
 //    {
 //        private static string connectionString = "Data Source=(local);Initial Catalog=DipMapper;Integrated Security=true";
 

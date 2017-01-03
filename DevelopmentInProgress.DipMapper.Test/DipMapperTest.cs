@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.Odbc;
+using System.Data.OleDb;
 using System.Data.SqlClient;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -9,6 +12,32 @@ namespace DevelopmentInProgress.DipMapper.Test
     [TestClass]
     public class DipMapperTest
     {
+        [TestMethod]
+        public void GetConnType_Odbc()
+        {
+            // Arrange
+            var conn = new OdbcConnection();
+
+            // Act
+            var connType = DipMapper.GetConnType(conn);
+
+            // Assert
+            Assert.AreEqual(connType.ToString(), DipMapper.ConnType.Odbc.ToString());
+        }
+
+        [TestMethod]
+        public void GetConnType_Oledb()
+        {
+            // Arrange
+            var conn = new OleDbConnection();
+
+            // Act
+            var connType = DipMapper.GetConnType(conn);
+
+            // Assert
+            Assert.AreEqual(connType.ToString(), DipMapper.ConnType.OleDb.ToString());
+        }
+
         [TestMethod]
         public void GetPropertyInfos_ExcludeUnsupportedProperties_IncludeGenericProperty()
         {
@@ -157,25 +186,25 @@ namespace DevelopmentInProgress.DipMapper.Test
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
 
             // Act
-            var sqlSelect = DipMapper.GetSqlSelect<Activity>(connType, propertyInfos);
+            var sqlSelect = DipMapper.GetSqlSelect<Activity>(connType, propertyInfos, null);
 
             // Assert
-            Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity;");
+            Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity");
         }
 
         [TestMethod]
-        public void GetSqlDelete_WithoutParameters()
+        public void GetSqlDelete_NoParameters()
         {
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var parameters = new Dictionary<string, object>();
+            var parameters = new List<IDbDataParameter>();
 
             // Act
             var deleteSql = DipMapper.GetSqlDelete<Activity>(connType, parameters);
 
             // Assert
-            Assert.AreEqual(deleteSql, "DELETE FROM Activity;");
+            Assert.AreEqual(deleteSql, "DELETE FROM Activity");
         }
 
         [TestMethod]
@@ -241,33 +270,179 @@ namespace DevelopmentInProgress.DipMapper.Test
         }
 
         [TestMethod]
-        [ExpectedException(typeof(NotSupportedException))]
-        public void GetSqlInsert_Oledb()
+        public void DefaultDbHelper_AddDataParameter()
         {
             // Arrange
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
-            var skipFields = new List<string>();
+            var defaultDbHelper = new DipMapper.DefaultDbHelper();
+            var command = new OleDbCommand();
 
             // Act
-            var sqlInsert = DipMapper.GetSqlInsert<Activity>(DipMapper.ConnType.OleDb, propertyInfos, "", "", skipFields);
+            defaultDbHelper.AddDataParameter(command, "Id", 3);
+            defaultDbHelper.AddDataParameter(command, "Description", "Hello World");
+            defaultDbHelper.AddDataParameter(command, "NullCheck", null);
 
             // Assert
-            Assert.AreEqual(sqlInsert, "INSERT INTO Activity (Id, Name, Level, IsActive, Created, Updated, ActivityType) VALUES (Id, Name, Level, IsActive, Created, Updated, ActivityType);");
+            Assert.AreEqual(command.Parameters.Count, 3);
+            Assert.AreEqual(command.Parameters[0].ParameterName, "Id");
+            Assert.AreEqual(command.Parameters[0].Value, 3);
+            Assert.AreEqual(command.Parameters[1].ParameterName, "Description");
+            Assert.AreEqual(command.Parameters[1].Value, "Hello World");
+            Assert.AreEqual(command.Parameters[2].ParameterName, "NullCheck");
+            Assert.AreEqual(command.Parameters[2].Value, DBNull.Value);
         }
 
         [TestMethod]
-        [ExpectedException(typeof(NotSupportedException))]
-        public void GetSqlInsert_Odbc()
+        public void DefaultDbHelper_GetParameterPrefix()
+        {
+            // Arrange
+            var defaultDbHelper = new DipMapper.DefaultDbHelper();
+
+            // Act
+            var prefix = defaultDbHelper.GetParameterPrefix();
+
+            // Assert
+            Assert.AreEqual(prefix, "");
+        }
+
+        [TestMethod]
+        public void DefaultDbHelper_GetParameterPrefix_IsWhereClauseTrue()
+        {
+            // Arrange
+            var defaultDbHelper = new DipMapper.DefaultDbHelper();
+
+            // Act
+            var prefix = defaultDbHelper.GetParameterPrefix(true);
+
+            // Assert
+            Assert.AreEqual(prefix, "p");
+        }
+
+        [TestMethod]
+        public void DefaultDbHelper_GetSqlSelectWithIdentity()
         {
             // Arrange
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
-            var skipFields = new List<string>();
+            var defaultDbHelper = new DipMapper.DefaultDbHelper();
+            var insertSql = "INSERT INTO Activity (Name) VALUES (@Name)";
 
             // Act
-            var sqlInsert = DipMapper.GetSqlInsert<Activity>(DipMapper.ConnType.Odbc, propertyInfos, "", "", skipFields);
+            var selectWithIdentity = defaultDbHelper.GetSqlSelectWithIdentity<Activity>(insertSql, propertyInfos, "Id");
 
             // Assert
-            Assert.AreEqual(sqlInsert, "INSERT INTO Activity (Id, Name, Level, IsActive, Created, Updated, ActivityType) VALUES (Id, Name, Level, IsActive, Created, Updated, ActivityType);");
+            Assert.AreEqual(insertSql, selectWithIdentity);
+        }
+
+        public void GetGenericParameters_No_Identity()
+        {
+            // Arrange
+            string identity = "Id";
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+
+            var activity = new Activity()
+            {
+                Id = 3,
+                Name = "Activity1",
+                IsActive = true,
+                Level = 4,
+                Created = DateTime.Today,
+                ActivityType = ActivityTypeEnum.Shared
+            };
+
+            // Act
+            var genericParameters = DipMapper.GetGenericParameters<Activity>(activity, propertyInfos, identity, null);
+
+            // Assert
+            Assert.AreEqual(genericParameters.Count(), 7);
+            Assert.AreEqual(genericParameters.ElementAt(0).Key, "Id");
+            Assert.AreEqual(genericParameters.ElementAt(1).Key, "Name");
+            Assert.AreEqual(genericParameters.ElementAt(2).Key, "Level");
+            Assert.AreEqual(genericParameters.ElementAt(3).Key, "IsActive");
+            Assert.AreEqual(genericParameters.ElementAt(4).Key, "Created");
+            Assert.AreEqual(genericParameters.ElementAt(5).Key, "Updated");
+            Assert.AreEqual(genericParameters.ElementAt(6).Key, "ActivityType");
+
+            Assert.AreEqual(genericParameters.Count(), 7);
+            Assert.AreEqual(genericParameters.ElementAt(0).Value, 3);
+            Assert.AreEqual(genericParameters.ElementAt(1).Value, "Activity1");
+            Assert.AreEqual(genericParameters.ElementAt(2).Value, 4);
+            Assert.AreEqual(genericParameters.ElementAt(3).Value, true);
+            Assert.AreEqual(genericParameters.ElementAt(4).Value, DateTime.Today);
+            Assert.AreEqual(genericParameters.ElementAt(5).Value, null);
+            Assert.AreEqual(genericParameters.ElementAt(6).Value, ActivityTypeEnum.Shared);
+        }
+
+        public void GetGenericParameters_Identity_String()
+        {
+            // Arrange
+            string identity = "Id";
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            
+            var activity = new Activity()
+            {
+                Id = 3,
+                Name = "Activity1",
+                IsActive = true,
+                Level = 4,
+                Created = DateTime.Today,
+                ActivityType = ActivityTypeEnum.Shared
+            };
+
+            // Act
+            var genericParameters = DipMapper.GetGenericParameters<Activity>(activity, propertyInfos, identity, null);
+
+            // Assert
+            Assert.AreEqual(genericParameters.Count(), 6);
+            Assert.AreEqual(genericParameters.ElementAt(0).Key, "Name");
+            Assert.AreEqual(genericParameters.ElementAt(1).Key, "Level");
+            Assert.AreEqual(genericParameters.ElementAt(2).Key, "IsActive");
+            Assert.AreEqual(genericParameters.ElementAt(3).Key, "Created");
+            Assert.AreEqual(genericParameters.ElementAt(4).Key, "Updated");
+            Assert.AreEqual(genericParameters.ElementAt(5).Key, "ActivityType");
+
+            Assert.AreEqual(genericParameters.Count(), 6);
+            Assert.AreEqual(genericParameters.ElementAt(0).Value, "Activity1");
+            Assert.AreEqual(genericParameters.ElementAt(1).Value, 4);
+            Assert.AreEqual(genericParameters.ElementAt(2).Value, true);
+            Assert.AreEqual(genericParameters.ElementAt(3).Value, DateTime.Today);
+            Assert.AreEqual(genericParameters.ElementAt(4).Value, null);
+            Assert.AreEqual(genericParameters.ElementAt(5).Value, ActivityTypeEnum.Shared);
+        }
+
+        public void GetGenericParameters_Identity_IDbDataParameter()
+        {
+            // Arrange
+            var activity = new Activity()
+            {
+                Id = 3,
+                Name = "Activity1",
+                IsActive = true,
+                Level = 4,
+                Created = DateTime.Today,
+                ActivityType = ActivityTypeEnum.Shared
+            };
+
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var identity = new OleDbParameter() { ParameterName = "Id", Value = activity.Id };
+
+            // Act
+            var genericParameters = DipMapper.GetGenericParameters<Activity>(activity, propertyInfos, null, identity);
+
+            // Assert
+            Assert.AreEqual(genericParameters.Count(), 6);
+            Assert.AreEqual(genericParameters.ElementAt(0).Key, "Name");
+            Assert.AreEqual(genericParameters.ElementAt(1).Key, "Level");
+            Assert.AreEqual(genericParameters.ElementAt(2).Key, "IsActive");
+            Assert.AreEqual(genericParameters.ElementAt(3).Key, "Created");
+            Assert.AreEqual(genericParameters.ElementAt(4).Key, "Updated");
+            Assert.AreEqual(genericParameters.ElementAt(5).Key, "ActivityType");
+
+            Assert.AreEqual(genericParameters.Count(), 6);
+            Assert.AreEqual(genericParameters.ElementAt(0).Value, "Activity1");
+            Assert.AreEqual(genericParameters.ElementAt(1).Value, 4);
+            Assert.AreEqual(genericParameters.ElementAt(2).Value, true);
+            Assert.AreEqual(genericParameters.ElementAt(3).Value, DateTime.Today);
+            Assert.AreEqual(genericParameters.ElementAt(4).Value, null);
+            Assert.AreEqual(genericParameters.ElementAt(5).Value, ActivityTypeEnum.Shared);
         }
     }
 }

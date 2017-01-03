@@ -1,5 +1,6 @@
 ﻿//using System;
 //using System.Collections.Generic;
+//using System.Data;
 //using System.Linq;
 //using Microsoft.VisualStudio.TestTools.UnitTesting;
 //using Oracle.ManagedDataAccess.Client;
@@ -9,14 +10,14 @@
 //    [TestClass]
 //    public class DipMapperOracleDataTest
 //    {
-//        private static string connectionString = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=XE)));User Id=authmanager;Password=authman;";
+//        private static string connectionString = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=XE)));User Id=dipmapper;Password=dipmapper;";
 
 //        [ClassInitialize]
 //        public static void ClassInitialise(TestContext testContext)
 //        {
 //            using (var conn = new OracleConnection(connectionString))
 //            {
-//                var createTable = "  CREATE TABLE \"AUTHMANAGER\".\"ACTIVITYORA\""
+//                var createTable = "  CREATE TABLE \"DIPMAPPER\".\"ACTIVITYORA\""
 //                                  + "(	\"ID\" NUMBER(*,0) NOT NULL ENABLE, "
 //                                  + "	\"NAME\" VARCHAR2(50 BYTE), "
 //                                  + "	\"STATUS\" FLOAT(126), "
@@ -27,7 +28,15 @@
 
 //                conn.ExecuteNonQuery(createTable);
 
-//                var createProc = "CREATE OR REPLACE PROCEDURE GETACTIVITIES "
+//                var createSequence = "CREATE SEQUENCE \"DIPMAPPER\".\"ActivityOra_seq\""
+//                                     + "  MINVALUE 1 "
+//                                     + "  START WITH 1 "
+//                                     + "  INCREMENT BY 1 "
+//                                     + "  NOCACHE";
+
+//                conn.ExecuteNonQuery(createSequence);
+
+//                var createProc = "CREATE OR REPLACE PROCEDURE \"DIPMAPPER\".\"GETACTIVITIES\""
 //                                 + " ( "
 //                                 + "   ISACTIVE IN NUMBER "
 //                                 + " ) AS "
@@ -50,8 +59,9 @@
 //        {
 //            using (var conn = new OracleConnection(connectionString))
 //            {
-//                conn.ExecuteNonQuery("DROP TABLE \"AUTHMANAGER\".\"ACTIVITYORA\";");
-//                conn.ExecuteNonQuery("DROP PROCEDURE GetActivities;");
+//                conn.ExecuteNonQuery("DROP TABLE \"DIPMAPPER\".\"ACTIVITYORA\"");
+//                conn.ExecuteNonQuery("DROP SEQUENCE \"DIPMAPPER\".\"ActivityOra_seq\"");
+//                conn.ExecuteNonQuery("DROP PROCEDURE \"DIPMAPPER\".\"GETACTIVITIES\"");
 //            }
 //        }
 
@@ -93,8 +103,12 @@
 //            {
 //                // Test Insert /////////////////////////////////////
 //                // Act 
-//                read = conn.Insert<ActivityOra>(read, "Id", "ActivityOra_seq");
-//                write = conn.Insert<ActivityOra>(write, "Id", "ActivityOra_seq");
+//                read.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL", null, CommandType.Text));
+//                read = conn.Insert<ActivityOra>(read);
+
+//                write.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL", null, CommandType.Text)); 
+//                write = conn.Insert<ActivityOra>(write);
+
 //                email = conn.Insert<ActivityOra>(email, "Id", "ActivityOra_seq");
 
 //                // Assert
