@@ -47,47 +47,27 @@ namespace DevelopmentInProgress.DipMapper
 
         internal enum ConnType
         {
-            MSSQL,
+            MsSql,
             MySql,
             Odbc,
             OleDb,
             Oracle
         }
 
-        private static readonly Dictionary<ConnType, IAddDataParameter> AddDataParameters;
-        private static readonly Dictionary<ConnType, ISqlIdentitySelect> SqlIdentitySelects;
-        private static readonly Dictionary<ConnType, ISqlInsertFields> SqlInsertFields; 
+        private static readonly Dictionary<ConnType, IDbHelper> DbHelpers;
 
         /// <summary>
         /// Static constructor for DipMapper.
         /// </summary>
         static DipMapper()
         {
-            AddDataParameters = new Dictionary<ConnType, IAddDataParameter>
+            DbHelpers = new Dictionary<ConnType, IDbHelper>
             {
-                {ConnType.MSSQL, new MSSQLAddDataParameter()},
-                {ConnType.Oracle, new OracleAddDataParameter()},
-                {ConnType.MySql, new DefaultAddDataParameter()},
-                {ConnType.Odbc, new DefaultAddDataParameter()},
-                {ConnType.OleDb, new DefaultAddDataParameter()}
-            };
-
-            SqlIdentitySelects = new Dictionary<ConnType, ISqlIdentitySelect>
-            {
-                {ConnType.MSSQL, new MSSQLSqlSelectWithIdentity()},
-                {ConnType.Oracle, new OracleSqlSelectWithIdentity()},
-                {ConnType.MySql, new MySqlSqlSelectWithIdentity()},
-                {ConnType.Odbc, new DefaultSqlSelectWithIdentity()},
-                {ConnType.OleDb, new DefaultSqlSelectWithIdentity()}
-            };
-
-            SqlInsertFields = new Dictionary<ConnType, ISqlInsertFields>()
-            {
-                {ConnType.MSSQL, new DefaultSqlInsertFields()},
-                {ConnType.Oracle, new OracleSqlInsertFields()},
-                {ConnType.MySql, new DefaultSqlInsertFields()},
-                {ConnType.Odbc, new DefaultSqlInsertFields()},
-                {ConnType.OleDb, new DefaultSqlInsertFields()}
+                {ConnType.MsSql, new MsSqlHelper()},
+                {ConnType.Oracle, new OracleHelper()},
+                {ConnType.MySql, new MySqlHelper()},
+                {ConnType.Odbc, new DefaultDbHelper()},
+                {ConnType.OleDb, new DefaultDbHelper()}
             };
         }
 
@@ -97,11 +77,11 @@ namespace DevelopmentInProgress.DipMapper
         /// </summary>
         /// <typeparam name="T">The type of object to populate and return.</typeparam>
         /// <param name="conn">The database connection.</param>
-        /// <param name="parameters">A dictionary of parameters used in the WHERE clause.</param>
+        /// <param name="parameters">A list of parameters used in the WHERE clause.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>A populated instance of the specified type, else returns null if no record is found.</returns>
-        public static T Single<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        public static T Single<T>(this IDbConnection conn, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             return Select<T>(conn, parameters, transaction, closeAndDisposeConnection).SingleOrDefault();
         }
@@ -111,94 +91,127 @@ namespace DevelopmentInProgress.DipMapper
         /// </summary>
         /// <typeparam name="T">The type of object to populate and return.</typeparam>
         /// <param name="conn">The database connection.</param>
-        /// <param name="parameters">A dictionary of parameters used in the WHERE clause.</param>
+        /// <param name="parameters">A list of parameters used in the WHERE clause.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <param name="optimiseObjectCreation">Optimises object creation by compiling a <see cref="DynamicMethod"/> for creating instances of objects of a specified type. The method is cached for reuse.</param>
         /// <returns>A list of the specified type.</returns>
-        public static IEnumerable<T> Select<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
+        public static IEnumerable<T> Select<T>(this IDbConnection conn, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlSelect<T>(connType, propertyInfos, parameters);
-            var extendedParameters = GetExtendedParameters<T>(connType, parameters);
-            var results = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection, optimiseObjectCreation);
+            var command = GetCommand(conn, sql, parameters, null, CommandType.Text, transaction);
+            var results = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
 
         /// <summary>
-        /// Inserts the object and returns a fully populated instance of the object. 
+        /// Inserts the object then returns it. Each supported public property will map to a corresponding field in a 
+        /// table of the same name as the object.
+        /// This is suitable for tables with no identity fields or where the identity value must be known prior to the 
+        /// insert e.g. such as Oracle tables before Oracle 12c where the identity value is obtained from a sequence.
+        /// This is not suitable for tables that have an auto incrementing identity field e.g. MS Sql Server and MySql.
         /// </summary>
         /// <typeparam name="T">The type of target object.</typeparam>
         /// <param name="conn">The database connection.</param>
         /// <param name="target">The target object.</param>
-        /// <param name="identityField">The name of the identity field of target object.</param>
-        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
-        public static T Insert<T>(this IDbConnection conn, T target, string identityField = "") where T : class, new()
-        {
-            return Insert(conn, target, identityField, "", null, null, false);
-        }
-
-        /// <summary>
-        /// Inserts the object and returns a fully populated instance of the object. 
-        /// </summary>
-        /// <typeparam name="T">The type of target object.</typeparam>
-        /// <param name="conn">The database connection.</param>
-        /// <param name="target">The target object.</param>
-        /// <param name="identityField">The name of the identity field of target object.</param>
-        /// <param name="sequenceName">The name of the Oracle sequence field of target object.</param>
-        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
-        public static T Insert<T>(this IDbConnection conn, T target, string identityField = "", string sequenceName = "") where T : class, new()
-        {
-            return Insert(conn, target, identityField, sequenceName, null, null, false);
-        }
-
-        /// <summary>
-        /// Inserts the object and returns a fully populated instance of the object. 
-        /// </summary>
-        /// <typeparam name="T">The type of target object.</typeparam>
-        /// <param name="conn">The database connection.</param>
-        /// <param name="target">The target object.</param>
-        /// <param name="identityField">The name of the identity field of target object.</param>
-        /// <param name="skipOnCreateFields">Fields to skip when inserting the record. This is used when relying on the database to apply default values when creating a new record.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
-        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
-        public static T Insert<T>(this IDbConnection conn, T target, string identityField = "", IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        /// <returns>The newly inserted object.</returns>
+        public static T Insert<T>(this IDbConnection conn, T target, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
-            return Insert(conn, target, identityField, "", skipOnCreateFields, transaction, closeAndDisposeConnection);
-        }
-
-        /// <summary>
-        /// Inserts the object and returns a fully populated instance of the object. 
-        /// </summary>
-        /// <typeparam name="T">The type of target object.</typeparam>
-        /// <param name="conn">The database connection.</param>
-        /// <param name="target">The target object.</param>
-        /// <param name="identityField">The name of the identity field of target object.</param>
-        /// <param name="sequenceName">The name of the Oracle sequence field of target object.</param>
-        /// <param name="skipOnCreateFields">Fields to skip when inserting the record. This is used when relying on the database to apply default values when creating a new record.</param>
-        /// <param name="transaction">A transaction to attach to the database command.</param>
-        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
-        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
-        public static T Insert<T>(this IDbConnection conn, T target, string identityField = "", string sequenceName = "", IEnumerable<string> skipOnCreateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
-        {
-            if (skipOnCreateFields == null)
-            {
-                skipOnCreateFields = new List<string>();
-            }
-
-            if (!string.IsNullOrWhiteSpace(identityField)
-                && !skipOnCreateFields.Contains(identityField))
-            {
-                ((IList) skipOnCreateFields).Add(identityField);
-            }
-
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, sequenceName, skipOnCreateFields);
-            var extendedParameters = GetExtendedParameters(target, connType, propertyInfos, skipOnCreateFields);
-            var result = ExecuteReader<T>(conn, sql, propertyInfos, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection, false).SingleOrDefault();
+            var sql = GetSqlInsert<T>(connType, propertyInfos, null, null);
+            var parameters = GetGenericParameters(target, propertyInfos, null);
+            var command = GetCommand(conn, sql, null, parameters, CommandType.Text, transaction);
+            int recordsAffected = ExecuteNonQuery(conn, command, closeAndDisposeConnection);
+            if (recordsAffected.Equals(1))
+            {
+                return target;
+            }
+
+            throw new Exception("DipMapper exception : " + recordsAffected + " records affected.");
+        }
+
+        /// <summary>
+        /// Inserts the object then returns it. Each supported public property will map to a corresponding field in a 
+        /// table of the same name as the object.
+        /// This is suitable for tables with no identity fields or where the identity value must be known prior to the 
+        /// insert e.g. such as Oracle tables before Oracle 12c where the identity value is obtained from a sequence.
+        /// This is not suitable for tables that have an auto incrementing identity field e.g. MS Sql Server and MySql.
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="target">The target object.</param>
+        /// <param name="insertParameters">Paremeters to be inserted. Note, if parameters are provided all other properties of the object will not be inserted.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>The newly inserted object.</returns>
+        public static T Insert<T>(this IDbConnection conn, T target, IEnumerable<IDbDataParameter> insertParameters, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        {
+            var connType = GetConnType(conn);
+            var propertyInfos = GetPropertyInfos<T>();
+            var sql = GetSqlInsert<T>(connType, propertyInfos, null, insertParameters);
+            var command = GetCommand(conn, sql, insertParameters, null, CommandType.Text, transaction);
+            int recordsAffected = ExecuteNonQuery(conn, command, closeAndDisposeConnection);
+            if (recordsAffected.Equals(1))
+            {
+                return target;
+            }
+
+            throw new Exception("DipMapper exception : " + recordsAffected + " records affected.");
+        }
+
+        /// <summary>
+        /// Inserts the object then returns it with its new identity value populated. Each supported public property  
+        /// will map to a corresponding field in a table of the same name as the object.
+        /// This is suitable for tables that have an auto incrementing identity field e.g. MS Sql Server and MySql.
+        /// This is not suitable for tables with no identity fields or where the identity value must be known prior 
+        /// to the insert e.g. such as Oracle tables before Oracle 12c where the identity value is obtained from a sequence. 
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="target">The target object.</param>
+        /// <param name="identityField">The name of the identity field of target object.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        {
+            var connType = GetConnType(conn);
+            var propertyInfos = GetPropertyInfos<T>();
+            var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, null);
+            var parameters = GetGenericParameters(target, propertyInfos, identityField);
+            var command = GetCommand(conn, sql, null, parameters, CommandType.Text, transaction);
+            var result = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, false).SingleOrDefault();
+            return result;
+        }
+
+        /// <summary>
+        /// Inserts the object then returns it with its new identity value populated. Each supported public property  
+        /// will map to a corresponding field in a table of the same name as the object.
+        /// This is suitable for tables that have an auto incrementing identity field e.g. MS Sql Server and MySql.
+        /// This is not suitable for tables with no identity fields or where the identity value must be known prior 
+        /// to the insert e.g. such as Oracle tables before Oracle 12c where the identity value is obtained from a sequence. 
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="target">The target object.</param>
+        /// <param name="identityField">The name of the identity field of target object.</param>
+        /// <param name="insertParameters">Paremeters to be inserted. Parameter names must map to the name of the field being inserted. 
+        /// Note, if parameters are provided, only those fields with a corresponding parameter will be included in the insert.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>A fully populated instance of the newly inserted object including its new identity field.</returns>
+        public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<IDbDataParameter> insertParameters, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        {
+            var connType = GetConnType(conn);
+            var propertyInfos = GetPropertyInfos<T>();
+            var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, insertParameters);
+            var command = GetCommand(conn, sql, insertParameters, null, CommandType.Text, transaction);
+            var result = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, false).SingleOrDefault();
             return result;
         }
 
@@ -208,23 +221,46 @@ namespace DevelopmentInProgress.DipMapper
         /// <typeparam name="T">The type of target object.</typeparam>
         /// <param name="conn">The database connection.</param>
         /// <param name="target">The target object.</param>
-        /// <param name="parameters">A dictionary of parameters used in the WHERE clause.</param>
-        /// <param name="skipOnUpdateFields">Fields to skip when updating e.g. read-only fields.</param>
+        /// <param name="identity">The parameter for the identity field used in the WHERE clause.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>The number of records affected.</returns>
-        public static int Update<T>(this IDbConnection conn, T target, Dictionary<string, object> parameters = null, IEnumerable<string> skipOnUpdateFields = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        public static int Update<T>(this IDbConnection conn, T target, IDbDataParameter identity, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
-            if (skipOnUpdateFields == null)
-            {
-                skipOnUpdateFields = new List<string>();
-            }
-
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlUpdate<T>(connType, propertyInfos, parameters, skipOnUpdateFields);
-            var extendedParameters = GetExtendedParameters(target, connType, propertyInfos, skipOnUpdateFields, parameters);
-            return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
+            var whereClauseParameters = new List<IDbDataParameter>() {identity};
+            var sql = GetSqlUpdate<T>(connType, propertyInfos, null, whereClauseParameters);
+            var parameters = GetGenericParameters(target, propertyInfos, null, identity);
+            var command = GetCommand(conn, sql, whereClauseParameters, parameters, CommandType.Text, transaction);
+            return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
+        }
+
+        /// <summary>
+        /// Updates the object.
+        /// </summary>
+        /// <typeparam name="T">The type of target object.</typeparam>
+        /// <param name="conn">The database connection.</param>
+        /// <param name="target">The target object.</param>
+        /// <param name="updateParameters">A list of parameters used in the WHERE clause.</param>
+        /// <param name="whereClauseParameters">A list of parameters used in the WHERE clause.</param>
+        /// <param name="transaction">A transaction to attach to the database command.</param>
+        /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
+        /// <returns>The number of records affected.</returns>
+        public static int Update<T>(this IDbConnection conn, T target, IEnumerable<IDbDataParameter> updateParameters, IEnumerable<IDbDataParameter> whereClauseParameters, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        {
+            var connType = GetConnType(conn);
+            var propertyInfos = GetPropertyInfos<T>();
+            var sql = GetSqlUpdate<T>(connType, propertyInfos, updateParameters, whereClauseParameters);
+
+            foreach (var parmeter in whereClauseParameters)
+            {
+                parmeter.ParameterName = "p" + parmeter.ParameterName;
+            }
+
+            var parameters = updateParameters.Concat(whereClauseParameters);
+            var command = GetCommand(conn, sql, parameters, null, CommandType.Text, transaction);
+            return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
         }
 
         /// <summary>
@@ -232,16 +268,16 @@ namespace DevelopmentInProgress.DipMapper
         /// </summary>
         /// <typeparam name="T">The type of target object.</typeparam>
         /// <param name="conn">The database connection.</param>
-        /// <param name="parameters">A dictionary of parameters used in the WHERE clause.</param>
+        /// <param name="parameters">A list of parameters used in the WHERE clause.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>The number of records affected.</returns>
-        public static int Delete<T>(this IDbConnection conn, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
+        public static int Delete<T>(this IDbConnection conn, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false) where T : class, new()
         {
             var connType = GetConnType(conn);
             var sql = GetSqlDelete<T>(connType, parameters);
-            var extendedParameters = GetExtendedParameters<T>(connType, parameters);
-            return ExecuteNonQuery(conn, sql, extendedParameters, CommandType.Text, transaction, closeAndDisposeConnection);
+            var command = GetCommand(conn, sql, parameters, null, CommandType.Text, transaction);
+            return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
         }
 
         /// <summary>
@@ -249,31 +285,15 @@ namespace DevelopmentInProgress.DipMapper
         /// </summary>
         /// <param name="conn">The database connection.</param>
         /// <param name="sql">The SQL or the name of the stored procedure to be executed.</param>
-        /// <param name="parameters">A dictionary of parameters.</param>
+        /// <param name="parameters">A list of parameters.</param>
         /// <param name="commandType">Indicates whether executing SQL (Text) or stored proc (StoredProcedure). Note, TableDirect is not supported.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>The number of records affected.</returns>
-        public static int ExecuteNonQuery(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+        public static int ExecuteNonQuery(this IDbConnection conn, string sql, IEnumerable<IDbDataParameter> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
-            IDbCommand command = null;
-
-            try
-            {
-                command = GetCommand(conn, sql, parameters, commandType, transaction);
-                OpenConnection(conn);
-                var recordsAffected = command.ExecuteNonQuery();
-                return recordsAffected;
-            }
-            finally
-            {
-                CloseAndDispose(command);
-
-                if (closeAndDisposeConnection)
-                {
-                    CloseAndDispose(conn);
-                }
-            }
+            var command = GetCommand(conn, sql, parameters, null, commandType, transaction);
+            return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
         }
 
         /// <summary>
@@ -281,18 +301,18 @@ namespace DevelopmentInProgress.DipMapper
         /// </summary>
         /// <param name="conn">The database connection.</param>
         /// <param name="sql">The SQL or the name of the stored procedure to be executed.</param>
-        /// <param name="parameters">A dictionary of parameters.</param>
+        /// <param name="parameters">A list of parameters.</param>
         /// <param name="commandType">Indicates whether executing SQL (Text) or stored proc (StoredProcedure). Note, TableDirect is not supported.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <returns>A scalar value resulting from executing the SQL statement or stored procedure.</returns>
-        public static object ExecuteScalar(this IDbConnection conn, string sql, Dictionary<string, object> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
+        public static object ExecuteScalar(this IDbConnection conn, string sql, IEnumerable<IDbDataParameter> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
             IDbCommand command = null;
 
             try
             {
-                command = GetCommand(conn, sql, parameters, commandType, transaction);
+                command = GetCommand(conn, sql, parameters, null, commandType, transaction);
                 OpenConnection(conn);
                 var result = command.ExecuteScalar();
                 return result;
@@ -321,7 +341,8 @@ namespace DevelopmentInProgress.DipMapper
         public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
-            var results = ExecuteReader<T>(conn, sql, propertyInfos, null, CommandType.Text, transaction, closeAndDisposeConnection, optimiseObjectCreation);
+            var command = GetCommand(conn, sql, null, null, CommandType.Text, transaction);
+            var results = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
 
@@ -336,10 +357,11 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="closeAndDisposeConnection">A flag indicating whether to close and dispose the connection once the query has been completed.</param>
         /// <param name="optimiseObjectCreation">Optimises object creation by compiling a <see cref="DynamicMethod"/> for creating instances of objects of a specified type. The method is cached for reuse.</param>
         /// <returns>The results of executing the stored procedure as a list of the specified type.</returns>
-        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, Dictionary<string, object> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
+        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
-            var results = ExecuteReader<T>(conn, procedureName, propertyInfos, parameters, CommandType.StoredProcedure, transaction, closeAndDisposeConnection, optimiseObjectCreation);
+            var command = GetCommand(conn, procedureName, parameters, null, CommandType.StoredProcedure, transaction);
+            var results = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
 
@@ -361,7 +383,7 @@ namespace DevelopmentInProgress.DipMapper
             return propertyInfoResults;
         }
 
-        internal static bool UnsupportedProperty(PropertyInfo propertyInfo)
+        private static bool UnsupportedProperty(PropertyInfo propertyInfo)
         {
             // Skip non-public properties and properties that are either 
             // classes (but not strings), interfaces, lists, generic 
@@ -400,34 +422,34 @@ namespace DevelopmentInProgress.DipMapper
             return typeof(T).Name;
         }
 
-        internal static string GetSqlSelect<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters = null)
+        internal static string GetSqlSelect<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> parameters)
         {
-            return "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + GetSqlWhereClause(connType, parameters) + ";";
+            return "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + GetSqlWhereClause(connType, parameters);
         }
 
-        internal static string GetSqlInsert<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName, IEnumerable<string> skipOnCreateFields = null)
+        internal static string GetSqlInsert<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, IEnumerable<IDbDataParameter> insertParameters)
         {
-            string insertSql = "INSERT INTO " + GetSqlTableName<T>() + SqlInsertFields[connType].GetSqlInsertFields<T>(connType, propertyInfos, skipOnCreateFields, identityField) + ";";
+            string insertSql = "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields<T>(connType, propertyInfos, identityField, insertParameters);
 
-            if (string.IsNullOrEmpty(identityField))
+            if (string.IsNullOrWhiteSpace(identityField))
             {
                 return insertSql;
             }
 
-            return SqlIdentitySelects[connType].GetSqlSelectWithIdentity<T>(insertSql, propertyInfos, identityField, sequenceName);
+            return DbHelpers[connType].GetSqlSelectWithIdentity<T>(insertSql, propertyInfos, identityField);
         }
 
-        internal static string GetSqlUpdate<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, IEnumerable<string> skipOnUpdateFields = null)
+        internal static string GetSqlUpdate<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> updateParameters, IEnumerable<IDbDataParameter> whereClauseParameters)
         {
-            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields(connType, propertyInfos, skipOnUpdateFields) + GetSqlWhereClause(connType, parameters) + ";";
+            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields(connType, propertyInfos, updateParameters) + GetSqlWhereClause(connType, whereClauseParameters);
         }
 
-        internal static string GetSqlDelete<T>(ConnType connType, Dictionary<string, object> parameters)
+        internal static string GetSqlDelete<T>(ConnType connType, IEnumerable<IDbDataParameter> parameters)
         {
-            return "DELETE FROM " + GetSqlTableName<T>() + GetSqlWhereClause(connType, parameters) + ";";
+            return "DELETE FROM " + GetSqlTableName<T>() + GetSqlWhereClause(connType, parameters);
         }
 
-        internal static string GetSqlWhereClause(ConnType connType, Dictionary<string, object> parameters)
+        internal static string GetSqlWhereClause(ConnType connType, IEnumerable<IDbDataParameter> parameters)
         {
             if (parameters == null
                 || !parameters.Any())
@@ -439,7 +461,7 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var parameter in parameters)
             {
-                where += parameter.Key + GetSqlWhereAssignment(parameter.Value) + GetParameterPrefix(connType, true) + parameter.Key + " AND ";
+                where += parameter.ParameterName + GetSqlWhereAssignment(parameter.Value) + DbHelpers[connType].GetParameterPrefix(true) + parameter.ParameterName + " AND ";
             }
 
             if (where.EndsWith(" AND "))
@@ -463,21 +485,51 @@ namespace DevelopmentInProgress.DipMapper
             return fields;
         }
 
-        internal static string GetSqlUpdateFields(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnUpdateFields)
+        internal static string GetSqlInsertFields<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, IEnumerable<IDbDataParameter> insertParameters)
+        {
+            string fields = string.Empty;
+            string parameters = string.Empty;
+
+            foreach (var propertyInfo in propertyInfos)
+            {
+                if (!string.IsNullOrWhiteSpace(identityField)
+                    && propertyInfo.Name.Equals(identityField))
+                {
+                    continue;
+                }
+
+                if (insertParameters != null
+                    && !insertParameters.Any(p => p.ParameterName.Equals(propertyInfo.Name)))
+                {
+                    continue;
+                }
+
+                fields += propertyInfo.Name + ", ";
+                parameters += DbHelpers[connType].GetParameterPrefix() + propertyInfo.Name + ", ";
+            }
+
+            fields = fields.Remove(fields.Length - 2, 2);
+            parameters = parameters.Remove(parameters.Length - 2, 2);
+
+            return " (" + fields + ") VALUES (" + parameters + ")";
+        }
+
+        internal static string GetSqlUpdateFields(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> updateParameters)
         {
             string fields = string.Empty;
 
             foreach (var propertyInfo in propertyInfos)
             {
-                if (skipOnUpdateFields.Contains(propertyInfo.Name))
+                if (updateParameters != null
+                    && !updateParameters.Any(p => p.ParameterName == propertyInfo.Name))
                 {
                     continue;
                 }
 
-                fields += propertyInfo.Name + "=" + GetParameterPrefix(connType) + propertyInfo.Name + ", ";
+                fields += propertyInfo.Name + "=" + DbHelpers[connType].GetParameterPrefix() + propertyInfo.Name + ", ";
             }
 
-            fields = fields.Remove(fields.Length - 2, 2);
+            fields = fields.Remove(fields.Length - 2, 2);    
             return fields;
         }
 
@@ -497,52 +549,38 @@ namespace DevelopmentInProgress.DipMapper
             return "=";
         }
 
-        internal static Dictionary<string, object> GetExtendedParameters<T>(ConnType connType, Dictionary<string, object> parameters = null)
+        internal static Dictionary<string, object> GetGenericParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, string identityField, IDbDataParameter identityParameter = null)
         {
-            return GetExtendedParameters<T>(default(T), connType, null, null, parameters);
-        }
-
-        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields)
-        {
-            return GetExtendedParameters<T>(target, connType, propertyInfos, skipFields, null);
-        }
-
-        internal static Dictionary<string, object> GetExtendedParameters<T>(T target, ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipFields, Dictionary<string, object> parameters)
-        {
-            var extendedParameters = new Dictionary<string, object>();
+            var parameters = new Dictionary<string, object>();
 
             if (propertyInfos != null)
             {
                 foreach (var propertyInfo in propertyInfos)
                 {
-                    if (skipFields.Contains(propertyInfo.Name))
+                    if (!string.IsNullOrWhiteSpace(identityField)
+                        && identityField.Equals(propertyInfo.Name))
                     {
                         continue;
                     }
 
-                    var val = propertyInfo.GetValue(target);
-                    extendedParameters.Add(GetParameterPrefix(connType) + propertyInfo.Name, val ?? DBNull.Value);
+                    if (identityParameter != null
+                        && identityParameter.ParameterName == propertyInfo.Name)
+                    {
+                        continue;
+                    }
+
+                    parameters.Add(propertyInfo.Name, propertyInfo.GetValue(target));
                 }
             }
 
-            if (parameters == null)
-            {
-                return extendedParameters;
-            }
-
-            foreach (var parameter in parameters)
-            {
-                extendedParameters.Add(GetParameterPrefix(connType, true) + parameter.Key, parameter.Value ?? DBNull.Value);
-            }
-
-            return extendedParameters;
+            return parameters;
         }
 
         internal static ConnType GetConnType(IDbConnection conn)
         {
             if (conn is SqlConnection)
             {
-                return ConnType.MSSQL;
+                return ConnType.MsSql;
             }
             
             if (conn.GetType().Name.Equals("OracleConnection"))
@@ -565,22 +603,7 @@ namespace DevelopmentInProgress.DipMapper
                 return ConnType.OleDb;
             }
 
-            throw new NotSupportedException("Connection " + conn.GetType().Name + " not supported.");
-        }
-
-        internal static string GetParameterPrefix(ConnType connType, bool isWhereClause = false)
-        {
-            switch (connType)
-            {
-                case ConnType.MSSQL:
-                    return isWhereClause ? "@p" : "@";
-                case ConnType.MySql:
-                    return isWhereClause ? "?p" : "?";
-                case ConnType.Oracle:
-                    return isWhereClause ? ":p" : ":";
-                default:
-                    throw new NotSupportedException("Connection " + connType.GetType().Name + " not supported.");
-            }
+            throw new NotSupportedException("DipMapper exception : Connection " + conn.GetType().Name + " not supported.");
         }
 
         internal static Func<T> New<T>(bool optimiseObjectCreation) where T : class, new()
@@ -623,7 +646,7 @@ namespace DevelopmentInProgress.DipMapper
             }
         }
 
-        private static IDbCommand GetCommand(IDbConnection conn, string queryString, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction)
+        private static IDbCommand GetCommand(IDbConnection conn, string queryString, IEnumerable<IDbDataParameter> dbDataParameters, Dictionary<string, object> genericParameters, CommandType commandType, IDbTransaction transaction)
         {
             var command = conn.CreateCommand();
             command.CommandText = queryString;
@@ -634,27 +657,51 @@ namespace DevelopmentInProgress.DipMapper
                 command.Transaction = transaction;
             }
 
-            if (parameters != null)
+            if (dbDataParameters != null)
             {
-                foreach (var kvp in parameters)
+                foreach (var dbDataParameter in dbDataParameters)
                 {
-                    AddDataParameters[GetConnType(conn)].AddDataParameter(command, kvp.Key, kvp.Value);
+                    command.Parameters.Add(dbDataParameter);
+                }
+            }
+            
+            if (genericParameters != null)
+            {
+                foreach (var kvp in genericParameters)
+                {
+                    DbHelpers[GetConnType(conn)].AddDataParameter(command, kvp.Key, kvp.Value);
                 }
             }
 
             return command;
         }
 
-        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, string sql, IEnumerable<PropertyInfo> propertyInfos, Dictionary<string, object> parameters, CommandType commandType, IDbTransaction transaction, bool closeAndDisposeConnection, bool optimiseObjectCreation) where T : class, new()
+        private static int ExecuteNonQuery(IDbConnection conn, IDbCommand command, bool closeAndDisposeConnection = false)
         {
-            var result = new List<T>();
+            try
+            {
+                OpenConnection(conn);
+                var recordsAffected = command.ExecuteNonQuery();
+                return recordsAffected;
+            }
+            finally
+            {
+                CloseAndDispose(command);
 
+                if (closeAndDisposeConnection)
+                {
+                    CloseAndDispose(conn);
+                }
+            }
+        }
+
+        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, IDbCommand command, IEnumerable<PropertyInfo> propertyInfos, bool closeAndDisposeConnection, bool optimiseObjectCreation) where T : class, new()
+        {
             IDataReader reader = null;
-            IDbCommand command = null;
+            var result = new List<T>();
 
             try
             {
-                command = GetCommand(conn, sql, parameters, commandType, transaction);
                 OpenConnection(conn);
                 reader = command.ExecuteReader();
 
@@ -730,157 +777,99 @@ namespace DevelopmentInProgress.DipMapper
             conn.Dispose();
         }
 
-        internal interface IAddDataParameter
+        internal interface IDbHelper
         {
+            string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField);
+            string GetParameterPrefix(bool isWhereClause = false);
             void AddDataParameter(IDbCommand comnmand, string parameterName, object data);
         }
 
-        internal class DefaultAddDataParameter : IAddDataParameter
+        internal class DefaultDbHelper : IDbHelper
         {
-            public void AddDataParameter(IDbCommand command, string parameterName, object data)
+            public virtual void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
                 var parameter = command.CreateParameter();
                 parameter.ParameterName = parameterName;
-                parameter.Value = data;
+                parameter.Value = data ?? DBNull.Value;
                 command.Parameters.Add(parameter);
             }
-        }
 
-        internal class MSSQLAddDataParameter : IAddDataParameter
-        {
-            public void AddDataParameter(IDbCommand command, string parameterName, object data)
+            public virtual string GetParameterPrefix(bool isWhereClause = false)
             {
-                ((SqlCommand) command).Parameters.AddWithValue(parameterName, data);
+                return isWhereClause ? "p" : "";
             }
-        }
 
-        internal class OracleAddDataParameter : IAddDataParameter
-        {
-            public void AddDataParameter(IDbCommand command, string parameterName, object data)
-            {
-                var parameter = command.CreateParameter();
-                parameter.ParameterName = parameterName;
-
-                if (data is bool)
-                {
-                    parameter.Value = (bool)data ? 1 : 0;
-                }
-                if (data is Enum)
-                {
-                    parameter.Value = Convert.ChangeType(data, Enum.GetUnderlyingType(data.GetType()));
-                }
-
-                command.Parameters.Add(parameter);
-            }
-        }
-
-        internal interface ISqlInsertFields
-        {
-            string GetSqlInsertFields<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields, string identityField);
-        }
-
-        internal class DefaultSqlInsertFields : ISqlInsertFields
-        {
-            public string GetSqlInsertFields<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields, string identityField)
-            {
-                string fields = string.Empty;
-                string parameters = string.Empty;
-
-                foreach (var propertyInfo in propertyInfos)
-                {
-                    if (skipOnCreateFields.Contains(propertyInfo.Name))
-                    {
-                        continue;
-                    }
-
-                    fields += propertyInfo.Name + ", ";
-                    parameters += GetParameterPrefix(connType) + propertyInfo.Name + ", ";
-                }
-
-                fields = fields.Remove(fields.Length - 2, 2);
-                parameters = parameters.Remove(parameters.Length - 2, 2);
-
-                return " (" + fields + ") VALUES (" + parameters + ")";
-            }
-        }
-
-        internal class OracleSqlInsertFields : ISqlInsertFields
-        {
-            public string GetSqlInsertFields<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<string> skipOnCreateFields, string identityField)
-            {
-                string fields = string.Empty;
-                string parameters = string.Empty;
-
-                foreach (var propertyInfo in propertyInfos)
-                {
-                    if (skipOnCreateFields.Contains(propertyInfo.Name)
-                        && (!string.IsNullOrWhiteSpace(identityField)
-                        && propertyInfo.Name != identityField))
-                    {
-                        continue;
-                    }
-
-                    fields += propertyInfo.Name + ", ";
-
-                    if (string.IsNullOrWhiteSpace(identityField))
-                    {
-                        parameters += GetParameterPrefix(connType) + propertyInfo.Name + ", ";
-                    }
-                    else
-                    {
-                        parameters += identityField == propertyInfo.Name ? "next" + propertyInfo.Name + ", " : GetParameterPrefix(connType) + propertyInfo.Name + ", ";
-                    }
-                }
-
-                fields = fields.Remove(fields.Length - 2, 2);
-                parameters = parameters.Remove(parameters.Length - 2, 2);
-
-                return " (" + fields + ") VALUES (" + parameters + ")";
-            }
-        }
-
-        internal interface ISqlIdentitySelect
-        {
-            string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName);
-        }
-
-        internal class DefaultSqlSelectWithIdentity : ISqlIdentitySelect
-        {
-            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName)
+            public virtual string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
             {
                 return sqlInsert;
             }
         }
 
-        internal class MSSQLSqlSelectWithIdentity : ISqlIdentitySelect
+        internal class MsSqlHelper : IDbHelper
         {
-            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName)
+            public void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
-                return sqlInsert 
-                    + "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = SCOPE_IDENTITY();";
+                ((SqlCommand)command).Parameters.AddWithValue("@" + parameterName, data ?? DBNull.Value);
+            }
+
+            public string GetParameterPrefix(bool isWhereClause = false)
+            {
+                return isWhereClause ? "@p" : "@";
+            }
+
+            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
+            {
+                return sqlInsert + ";SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = SCOPE_IDENTITY();";
             }
         }
 
-        internal class MySqlSqlSelectWithIdentity : ISqlIdentitySelect
+        internal class OracleHelper : DefaultDbHelper
         {
-            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName)
+            public override void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
-                return sqlInsert 
-                    + "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = LAST_INSERT_ID();";
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = ":" + parameterName;
+
+                if (data is bool)
+                {
+                    parameter.Value = (bool)data ? 1 : 0;
+                }
+                else if (data is Enum)
+                {
+                    parameter.Value = Convert.ChangeType(data, Enum.GetUnderlyingType(data.GetType()));
+                }
+                else
+                {
+                    parameter.Value = data ?? DBNull.Value;
+                }
+
+                command.Parameters.Add(parameter);
+            }
+
+            public override string GetParameterPrefix(bool isWhereClause = false)
+            {
+                return isWhereClause ? ":p" : ":";
             }
         }
 
-        internal class OracleSqlSelectWithIdentity : ISqlIdentitySelect
+        internal class MySqlHelper : IDbHelper
         {
-            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField, string sequenceName)
+            public void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
-                return "DECLARE"
-                       + " next" + identityField + " NUMBER;"
-                       + " BEGIN"
-                       + " next" + identityField + " := " + sequenceName + ".nextval;"
-                       + " " + sqlInsert
-                       + " SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = next" + identityField + ";"
-                       + " END;";
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = "?" + parameterName;
+                parameter.Value = data ?? DBNull.Value;
+                command.Parameters.Add(parameter);
+            }
+
+            public string GetParameterPrefix(bool isWhereClause = false)
+            {
+                return isWhereClause ? "?p" : "?";
+            }
+
+            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
+            {
+                return sqlInsert + ";SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = LAST_INSERT_ID();";
             }
         }
     }
