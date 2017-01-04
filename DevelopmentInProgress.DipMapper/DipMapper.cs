@@ -667,9 +667,10 @@ namespace DevelopmentInProgress.DipMapper
             
             if (genericParameters != null)
             {
+                var connType = GetConnType(conn);
                 foreach (var kvp in genericParameters)
                 {
-                    DbHelpers[GetConnType(conn)].AddDataParameter(command, kvp.Key, kvp.Value);
+                    DbHelpers[connType].AddDataParameter(command, kvp.Key, kvp.Value);
                 }
             }
 
