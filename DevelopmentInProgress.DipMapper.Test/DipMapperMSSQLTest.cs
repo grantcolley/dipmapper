@@ -46,29 +46,55 @@ namespace DevelopmentInProgress.DipMapper.Test
         }
 
         [TestMethod]
-        public void MsSqlHelper_GetParameterPrefix()
+        public void MsSqlHelper_GetParameterName()
         {
             // Arrange
             var msSqlHelper = new DipMapper.MsSqlHelper();
 
             // Act
-            var prefix = msSqlHelper.GetParameterPrefix();
+            var prefix = msSqlHelper.GetParameterName("Id");
 
             // Assert
-            Assert.AreEqual(prefix, "@");
+            Assert.AreEqual(prefix, "@Id");
         }
 
         [TestMethod]
-        public void MsSqlHelper_GetParameterPrefix_IsWhereClauseTrue()
+        public void MsSqlHelper_GetParameterName_IsWhereClauseTrue()
         {
             // Arrange
             var msSqlHelper = new DipMapper.MsSqlHelper();
 
             // Act
-            var prefix = msSqlHelper.GetParameterPrefix(true);
+            var prefix = msSqlHelper.GetParameterName("Id", true);
 
             // Assert
-            Assert.AreEqual(prefix, "@p");
+            Assert.AreEqual(prefix, "@pId");
+        }
+
+        [TestMethod]
+        public void MsSqlHelper_GetParameterName_Prefix()
+        {
+            // Arrange
+            var msSqlHelper = new DipMapper.MsSqlHelper();
+
+            // Act
+            var prefix = msSqlHelper.GetParameterName("@Id");
+
+            // Assert
+            Assert.AreEqual(prefix, "@Id");
+        }
+
+        [TestMethod]
+        public void MsSqlHelper_GetParameterName_Prefix_IsWhereClauseTrue()
+        {
+            // Arrange
+            var msSqlHelper = new DipMapper.MsSqlHelper();
+
+            // Act
+            var prefix = msSqlHelper.GetParameterName("@Id", true);
+
+            // Assert
+            Assert.AreEqual(prefix, "@pId");
         }
 
         [TestMethod]

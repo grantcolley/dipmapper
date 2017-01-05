@@ -298,10 +298,10 @@ namespace DevelopmentInProgress.DipMapper.Test
             var defaultDbHelper = new DipMapper.DefaultDbHelper();
 
             // Act
-            var prefix = defaultDbHelper.GetParameterPrefix();
+            var prefix = defaultDbHelper.GetParameterName("Id");
 
             // Assert
-            Assert.AreEqual(prefix, "");
+            Assert.AreEqual(prefix, "Id");
         }
 
         [TestMethod]
@@ -311,10 +311,10 @@ namespace DevelopmentInProgress.DipMapper.Test
             var defaultDbHelper = new DipMapper.DefaultDbHelper();
 
             // Act
-            var prefix = defaultDbHelper.GetParameterPrefix(true);
+            var prefix = defaultDbHelper.GetParameterName("Id", true);
 
             // Assert
-            Assert.AreEqual(prefix, "p");
+            Assert.AreEqual(prefix, "pId");
         }
 
         [TestMethod]
