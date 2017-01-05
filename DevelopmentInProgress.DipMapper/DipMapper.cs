@@ -101,7 +101,7 @@ namespace DevelopmentInProgress.DipMapper
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlSelect<T>(connType, propertyInfos, parameters);
-            var command = GetCommand(conn, sql, parameters, null, CommandType.Text, transaction);
+            var command = GetCommand(conn, sql, null, parameters, null, CommandType.Text, transaction);
             var results = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
@@ -125,7 +125,7 @@ namespace DevelopmentInProgress.DipMapper
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, null, null);
             var parameters = GetGenericParameters(target, propertyInfos, null);
-            var command = GetCommand(conn, sql, null, parameters, CommandType.Text, transaction);
+            var command = GetCommand(conn, sql, null, null, parameters, CommandType.Text, transaction);
             int recordsAffected = ExecuteNonQuery(conn, command, closeAndDisposeConnection);
             if (recordsAffected.Equals(1))
             {
@@ -154,7 +154,7 @@ namespace DevelopmentInProgress.DipMapper
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, null, insertParameters);
-            var command = GetCommand(conn, sql, insertParameters, null, CommandType.Text, transaction);
+            var command = GetCommand(conn, sql, insertParameters, null, null, CommandType.Text, transaction);
             int recordsAffected = ExecuteNonQuery(conn, command, closeAndDisposeConnection);
             if (recordsAffected.Equals(1))
             {
@@ -184,7 +184,7 @@ namespace DevelopmentInProgress.DipMapper
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, null);
             var parameters = GetGenericParameters(target, propertyInfos, identityField);
-            var command = GetCommand(conn, sql, null, parameters, CommandType.Text, transaction);
+            var command = GetCommand(conn, sql, null, null, parameters, CommandType.Text, transaction);
             var result = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, false).SingleOrDefault();
             return result;
         }
@@ -210,7 +210,7 @@ namespace DevelopmentInProgress.DipMapper
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, insertParameters);
-            var command = GetCommand(conn, sql, insertParameters, null, CommandType.Text, transaction);
+            var command = GetCommand(conn, sql, insertParameters, null, null, CommandType.Text, transaction);
             var result = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, false).SingleOrDefault();
             return result;
         }
@@ -232,7 +232,7 @@ namespace DevelopmentInProgress.DipMapper
             var whereClauseParameters = new List<IDbDataParameter>() {identity};
             var sql = GetSqlUpdate<T>(connType, propertyInfos, null, whereClauseParameters);
             var parameters = GetGenericParameters(target, propertyInfos, null, identity);
-            var command = GetCommand(conn, sql, whereClauseParameters, parameters, CommandType.Text, transaction);
+            var command = GetCommand(conn, sql, null, whereClauseParameters, parameters, CommandType.Text, transaction);
             return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
         }
 
@@ -252,14 +252,7 @@ namespace DevelopmentInProgress.DipMapper
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
             var sql = GetSqlUpdate<T>(connType, propertyInfos, updateParameters, whereClauseParameters);
-
-            foreach (var parmeter in whereClauseParameters)
-            {
-                parmeter.ParameterName = "p" + parmeter.ParameterName;
-            }
-
-            var parameters = updateParameters.Concat(whereClauseParameters);
-            var command = GetCommand(conn, sql, parameters, null, CommandType.Text, transaction);
+            var command = GetCommand(conn, sql, updateParameters, whereClauseParameters, null, CommandType.Text, transaction);
             return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
         }
 
@@ -276,7 +269,7 @@ namespace DevelopmentInProgress.DipMapper
         {
             var connType = GetConnType(conn);
             var sql = GetSqlDelete<T>(connType, parameters);
-            var command = GetCommand(conn, sql, parameters, null, CommandType.Text, transaction);
+            var command = GetCommand(conn, sql, null, parameters, null, CommandType.Text, transaction);
             return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
         }
 
@@ -292,7 +285,7 @@ namespace DevelopmentInProgress.DipMapper
         /// <returns>The number of records affected.</returns>
         public static int ExecuteNonQuery(this IDbConnection conn, string sql, IEnumerable<IDbDataParameter> parameters = null, CommandType commandType = CommandType.Text, IDbTransaction transaction = null, bool closeAndDisposeConnection = false)
         {
-            var command = GetCommand(conn, sql, parameters, null, commandType, transaction);
+            var command = GetCommand(conn, sql, parameters, null, null, commandType, transaction);
             return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
         }
 
@@ -312,7 +305,7 @@ namespace DevelopmentInProgress.DipMapper
 
             try
             {
-                command = GetCommand(conn, sql, parameters, null, commandType, transaction);
+                command = GetCommand(conn, sql, parameters, null, null, commandType, transaction);
                 OpenConnection(conn);
                 var result = command.ExecuteScalar();
                 return result;
@@ -341,7 +334,7 @@ namespace DevelopmentInProgress.DipMapper
         public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
-            var command = GetCommand(conn, sql, null, null, CommandType.Text, transaction);
+            var command = GetCommand(conn, sql, null, null, null, CommandType.Text, transaction);
             var results = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
@@ -360,7 +353,7 @@ namespace DevelopmentInProgress.DipMapper
         public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null, bool closeAndDisposeConnection = false, bool optimiseObjectCreation = false) where T : class, new()
         {
             var propertyInfos = GetPropertyInfos<T>();
-            var command = GetCommand(conn, procedureName, parameters, null, CommandType.StoredProcedure, transaction);
+            var command = GetCommand(conn, procedureName, parameters, null, null, CommandType.StoredProcedure, transaction);
             var results = ExecuteReader<T>(conn, command, propertyInfos, closeAndDisposeConnection, optimiseObjectCreation);
             return results;
         }
@@ -461,7 +454,7 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var parameter in parameters)
             {
-                where += parameter.ParameterName + GetSqlWhereAssignment(parameter.Value) + DbHelpers[connType].GetParameterPrefix(true) + parameter.ParameterName + " AND ";
+                where += parameter.ParameterName + GetSqlWhereAssignment(parameter.Value) + DbHelpers[connType].GetParameterName(parameter.ParameterName, true) + " AND ";
             }
 
             if (where.EndsWith(" AND "))
@@ -505,7 +498,7 @@ namespace DevelopmentInProgress.DipMapper
                 }
 
                 fields += propertyInfo.Name + ", ";
-                parameters += DbHelpers[connType].GetParameterPrefix() + propertyInfo.Name + ", ";
+                parameters += DbHelpers[connType].GetParameterName(propertyInfo.Name) + ", ";
             }
 
             fields = fields.Remove(fields.Length - 2, 2);
@@ -526,7 +519,7 @@ namespace DevelopmentInProgress.DipMapper
                     continue;
                 }
 
-                fields += propertyInfo.Name + "=" + DbHelpers[connType].GetParameterPrefix() + propertyInfo.Name + ", ";
+                fields += propertyInfo.Name + "=" + DbHelpers[connType].GetParameterName(propertyInfo.Name) + ", ";
             }
 
             fields = fields.Remove(fields.Length - 2, 2);    
@@ -646,8 +639,9 @@ namespace DevelopmentInProgress.DipMapper
             }
         }
 
-        private static IDbCommand GetCommand(IDbConnection conn, string queryString, IEnumerable<IDbDataParameter> dbDataParameters, Dictionary<string, object> genericParameters, CommandType commandType, IDbTransaction transaction)
+        private static IDbCommand GetCommand(IDbConnection conn, string queryString, IEnumerable<IDbDataParameter> dbDataParameters, IEnumerable<IDbDataParameter> dbDataParametersWhereClause, Dictionary<string, object> genericParameters, CommandType commandType, IDbTransaction transaction)
         {
+            var connType = GetConnType(conn);
             var command = conn.CreateCommand();
             command.CommandText = queryString;
             command.CommandType = commandType;
@@ -661,13 +655,22 @@ namespace DevelopmentInProgress.DipMapper
             {
                 foreach (var dbDataParameter in dbDataParameters)
                 {
+                    dbDataParameter.ParameterName = DbHelpers[connType].GetParameterName(dbDataParameter.ParameterName);
                     command.Parameters.Add(dbDataParameter);
                 }
             }
-            
+
+            if (dbDataParametersWhereClause != null)
+            {
+                foreach (var dbDataParameter in dbDataParametersWhereClause)
+                {
+                    dbDataParameter.ParameterName = DbHelpers[connType].GetParameterName(dbDataParameter.ParameterName, true);
+                    command.Parameters.Add(dbDataParameter);
+                }
+            }
+
             if (genericParameters != null)
             {
-                var connType = GetConnType(conn);
                 foreach (var kvp in genericParameters)
                 {
                     DbHelpers[connType].AddDataParameter(command, kvp.Key, kvp.Value);
@@ -781,7 +784,7 @@ namespace DevelopmentInProgress.DipMapper
         internal interface IDbHelper
         {
             string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField);
-            string GetParameterPrefix(bool isWhereClause = false);
+            string GetParameterName(string name, bool isWhereClause = false);
             void AddDataParameter(IDbCommand comnmand, string parameterName, object data);
         }
 
@@ -790,14 +793,14 @@ namespace DevelopmentInProgress.DipMapper
             public virtual void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
                 var parameter = command.CreateParameter();
-                parameter.ParameterName = parameterName;
+                parameter.ParameterName = GetParameterName(parameterName);
                 parameter.Value = data ?? DBNull.Value;
                 command.Parameters.Add(parameter);
             }
 
-            public virtual string GetParameterPrefix(bool isWhereClause = false)
+            public virtual string GetParameterName(string name, bool isWhereClause = false)
             {
-                return isWhereClause ? "p" : "";
+                return isWhereClause ? "p" + name : name;
             }
 
             public virtual string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
@@ -810,12 +813,17 @@ namespace DevelopmentInProgress.DipMapper
         {
             public void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
-                ((SqlCommand)command).Parameters.AddWithValue("@" + parameterName, data ?? DBNull.Value);
+                ((SqlCommand)command).Parameters.AddWithValue(GetParameterName(parameterName), data ?? DBNull.Value);
             }
 
-            public string GetParameterPrefix(bool isWhereClause = false)
+            public string GetParameterName(string name, bool isWhereClause = false)
             {
-                return isWhereClause ? "@p" : "@";
+                if (name.StartsWith("@"))
+                {
+                    name = name.Remove(0, 1);
+                }
+
+                return isWhereClause ? "@p" + name : "@" + name;
             }
 
             public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
@@ -829,7 +837,7 @@ namespace DevelopmentInProgress.DipMapper
             public override void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
                 var parameter = command.CreateParameter();
-                parameter.ParameterName = ":" + parameterName;
+                parameter.ParameterName = GetParameterName(parameterName);
 
                 if (data is bool)
                 {
@@ -847,9 +855,14 @@ namespace DevelopmentInProgress.DipMapper
                 command.Parameters.Add(parameter);
             }
 
-            public override string GetParameterPrefix(bool isWhereClause = false)
+            public override string GetParameterName(string name, bool isWhereClause = false)
             {
-                return isWhereClause ? ":p" : ":";
+                if (name.StartsWith(":"))
+                {
+                    name = name.Remove(0, 1);
+                }
+
+                return isWhereClause ? ":p" + name : ":" + name;
             }
         }
 
@@ -858,14 +871,19 @@ namespace DevelopmentInProgress.DipMapper
             public void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
                 var parameter = command.CreateParameter();
-                parameter.ParameterName = "?" + parameterName;
+                parameter.ParameterName = GetParameterName(parameterName);
                 parameter.Value = data ?? DBNull.Value;
                 command.Parameters.Add(parameter);
             }
 
-            public string GetParameterPrefix(bool isWhereClause = false)
+            public string GetParameterName(string name, bool isWhereClause = false)
             {
-                return isWhereClause ? "?p" : "?";
+                if (name.StartsWith("?"))
+                {
+                    name = name.Remove(0, 1);
+                }
+
+                return isWhereClause ? "?p" + name : "?" + name;
             }
 
             public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
