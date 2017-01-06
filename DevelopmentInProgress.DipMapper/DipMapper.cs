@@ -230,7 +230,7 @@ namespace DevelopmentInProgress.DipMapper
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
             var whereClauseParameters = new List<IDbDataParameter>() {identity};
-            var sql = GetSqlUpdate<T>(connType, propertyInfos, null, whereClauseParameters);
+            var sql = GetSqlUpdate<T>(connType, propertyInfos, null, whereClauseParameters, identity);
             var parameters = GetGenericParameters(target, propertyInfos, null, identity);
             var command = GetCommand(conn, sql, null, whereClauseParameters, parameters, CommandType.Text, transaction);
             return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
@@ -251,7 +251,7 @@ namespace DevelopmentInProgress.DipMapper
         {
             var connType = GetConnType(conn);
             var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlUpdate<T>(connType, propertyInfos, updateParameters, whereClauseParameters);
+            var sql = GetSqlUpdate<T>(connType, propertyInfos, updateParameters, whereClauseParameters, null);
             var command = GetCommand(conn, sql, updateParameters, whereClauseParameters, null, CommandType.Text, transaction);
             return ExecuteNonQuery(conn, command, closeAndDisposeConnection);
         }
@@ -432,9 +432,9 @@ namespace DevelopmentInProgress.DipMapper
             return DbHelpers[connType].GetSqlSelectWithIdentity<T>(insertSql, propertyInfos, identityField);
         }
 
-        internal static string GetSqlUpdate<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> updateParameters, IEnumerable<IDbDataParameter> whereClauseParameters)
+        internal static string GetSqlUpdate<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> updateParameters, IEnumerable<IDbDataParameter> whereClauseParameters, IDbDataParameter identity)
         {
-            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields(connType, propertyInfos, updateParameters) + GetSqlWhereClause(connType, whereClauseParameters);
+            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields(connType, propertyInfos, updateParameters, identity) + GetSqlWhereClause(connType, whereClauseParameters);
         }
 
         internal static string GetSqlDelete<T>(ConnType connType, IEnumerable<IDbDataParameter> parameters)
@@ -507,7 +507,7 @@ namespace DevelopmentInProgress.DipMapper
             return " (" + fields + ") VALUES (" + parameters + ")";
         }
 
-        internal static string GetSqlUpdateFields(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> updateParameters)
+        internal static string GetSqlUpdateFields(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> updateParameters, IDbDataParameter identity)
         {
             string fields = string.Empty;
 
@@ -515,6 +515,12 @@ namespace DevelopmentInProgress.DipMapper
             {
                 if (updateParameters != null
                     && !updateParameters.Any(p => p.ParameterName == propertyInfo.Name))
+                {
+                    continue;
+                }
+
+                if (identity != null
+                    && propertyInfo.Name == identity.ParameterName)
                 {
                     continue;
                 }
