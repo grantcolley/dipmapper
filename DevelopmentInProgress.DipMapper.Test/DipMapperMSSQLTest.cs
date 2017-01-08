@@ -156,7 +156,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
-            var parameters = new List<IDbDataParameter>();
+            var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() {ParameterName = "Id", Value = 3});
 
             // Act
@@ -172,7 +172,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var parameters = new List<IDbDataParameter>();
+            var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Id", Value = 3 });
             parameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = true });
             parameters.Add(new SqlParameter() { ParameterName = "ActivityType", Value = 2 });
@@ -190,7 +190,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var parameters = new List<IDbDataParameter>();
+            var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Id", Value = 3 });
 
             // Act
@@ -222,7 +222,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
-            var parameters = new List<IDbDataParameter>();
+            var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
             parameters.Add(new SqlParameter() { ParameterName = "Level", Value = 1 });
             parameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = true });
@@ -272,7 +272,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
-            var parameters = new List<IDbDataParameter>();
+            var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
             parameters.Add(new SqlParameter() { ParameterName = "Level", Value = 1 });
             parameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = true });
@@ -308,7 +308,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
-            var parameters = new List<IDbDataParameter>();
+            var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
             parameters.Add(new SqlParameter() { ParameterName = "Level", Value = 1 });
             parameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = true });
@@ -358,7 +358,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
-            var updateParameters = new List<IDbDataParameter>();
+            var updateParameters = new List<SqlParameter>();
             updateParameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
             updateParameters.Add(new SqlParameter() { ParameterName = "Level", Value = 1 });
             updateParameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = true });
@@ -378,7 +378,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
-            var whereClauseParameters = new List<IDbDataParameter>();
+            var whereClauseParameters = new List<SqlParameter>();
             whereClauseParameters.Add(new SqlParameter() { ParameterName = "Id", Value = 5 });
 
             // Act
@@ -396,13 +396,13 @@ namespace DevelopmentInProgress.DipMapper.Test
             var connType = DipMapper.GetConnType(conn);
             var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
 
-            var parameters = new List<IDbDataParameter>();
+            var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
             parameters.Add(new SqlParameter() { ParameterName = "Level", Value = 1 });
             parameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = true });
             parameters.Add(new SqlParameter() { ParameterName = "ActivityType", Value = 2 });
 
-            var whereClauseParameters = new List<IDbDataParameter>();
+            var whereClauseParameters = new List<SqlParameter>();
             whereClauseParameters.Add(new SqlParameter() { ParameterName = "Id", Value = 5 });
 
             // Act
