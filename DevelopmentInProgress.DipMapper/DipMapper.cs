@@ -709,6 +709,7 @@ namespace DevelopmentInProgress.DipMapper
         {
             IDataReader reader = null;
             var result = new List<T>();
+            var connType = GetConnType(conn);
 
             try
             {
@@ -719,7 +720,7 @@ namespace DevelopmentInProgress.DipMapper
 
                 while (reader.Read())
                 {
-                    var t = ReadData<T>(reader, newT(), propertyInfos);
+                    var t = DbHelpers[connType].ReadData<T>(reader, newT(), propertyInfos);
                     result.Add(t);
                 }
             }
@@ -736,24 +737,6 @@ namespace DevelopmentInProgress.DipMapper
             }
 
             return result;
-        }
-
-        private static T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
-        {
-
-            for (int i = 0; i < reader.FieldCount; i++)
-            {
-                var propertyInfo = propertyInfos.FirstOrDefault(p => p.Name == reader.GetName(i));
-                if (propertyInfo == null)
-                {
-                    throw new Exception("DipMapper exception : Unable to map field " + reader.GetName(i) +
-                                        " to object " + t.GetType().Name);
-                }
-
-                propertyInfo.SetValue(t, reader[i] == DBNull.Value ? null : reader[i]);
-            }
-
-            return t;
         }
 
         private static void CloseAndDispose(IDataReader reader)
@@ -792,6 +775,7 @@ namespace DevelopmentInProgress.DipMapper
             string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField);
             string GetParameterName(string name, bool isWhereClause = false);
             void AddDataParameter(IDbCommand comnmand, string parameterName, object data);
+            T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos);
         }
 
         internal class DefaultDbHelper : IDbHelper
@@ -813,16 +797,34 @@ namespace DevelopmentInProgress.DipMapper
             {
                 return sqlInsert;
             }
+
+            public virtual T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
+            {
+
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    var propertyInfo = propertyInfos.FirstOrDefault(p => p.Name == reader.GetName(i));
+                    if (propertyInfo == null)
+                    {
+                        throw new Exception("DipMapper exception : Unable to map field " + reader.GetName(i) +
+                                            " to object " + t.GetType().Name);
+                    }
+
+                    propertyInfo.SetValue(t, reader[i] == DBNull.Value ? null : reader[i]);
+                }
+
+                return t;
+            }
         }
 
-        internal class MsSqlHelper : IDbHelper
+        internal class MsSqlHelper : DefaultDbHelper
         {
-            public void AddDataParameter(IDbCommand command, string parameterName, object data)
+            public override void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
                 ((SqlCommand)command).Parameters.AddWithValue(GetParameterName(parameterName), data ?? DBNull.Value);
             }
 
-            public string GetParameterName(string name, bool isWhereClause = false)
+            public override string GetParameterName(string name, bool isWhereClause = false)
             {
                 if (name.StartsWith("@"))
                 {
@@ -832,7 +834,7 @@ namespace DevelopmentInProgress.DipMapper
                 return isWhereClause ? "@p" + name : "@" + name;
             }
 
-            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
+            public override string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
             {
                 return sqlInsert + ";SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = SCOPE_IDENTITY();";
             }
@@ -870,11 +872,29 @@ namespace DevelopmentInProgress.DipMapper
 
                 return isWhereClause ? ":p" + name : ":" + name;
             }
+
+            public override T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
+            {
+
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    var propertyInfo = propertyInfos.FirstOrDefault(p => p.Name.ToUpper() == reader.GetName(i));
+                    if (propertyInfo == null)
+                    {
+                        throw new Exception("DipMapper exception : Unable to map field " + reader.GetName(i) +
+                                            " to object " + t.GetType().Name);
+                    }
+
+                    propertyInfo.SetValue(t, reader[i] == DBNull.Value ? null : reader[i]);
+                }
+
+                return t;
+            }
         }
 
-        internal class MySqlHelper : IDbHelper
+        internal class MySqlHelper : DefaultDbHelper
         {
-            public void AddDataParameter(IDbCommand command, string parameterName, object data)
+            public override void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
                 var parameter = command.CreateParameter();
                 parameter.ParameterName = GetParameterName(parameterName);
@@ -882,7 +902,7 @@ namespace DevelopmentInProgress.DipMapper
                 command.Parameters.Add(parameter);
             }
 
-            public string GetParameterName(string name, bool isWhereClause = false)
+            public override string GetParameterName(string name, bool isWhereClause = false)
             {
                 if (name.StartsWith("?"))
                 {
@@ -892,7 +912,7 @@ namespace DevelopmentInProgress.DipMapper
                 return isWhereClause ? "?p" + name : "?" + name;
             }
 
-            public string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
+            public override string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
             {
                 return sqlInsert + ";SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = LAST_INSERT_ID();";
             }
