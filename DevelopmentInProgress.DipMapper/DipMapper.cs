@@ -6,6 +6,7 @@
 //-----------------------------------------------------------------------
 
 using System;
+using System.CodeDom;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -885,7 +886,45 @@ namespace DevelopmentInProgress.DipMapper
                                             " to object " + t.GetType().Name);
                     }
 
-                    propertyInfo.SetValue(t, reader[i] == DBNull.Value ? null : reader[i]);
+                    Type propertyType;
+                    if (propertyInfo.PropertyType.IsGenericType
+                        && propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof (Nullable<>))
+                    {
+                        propertyType = Nullable.GetUnderlyingType(propertyInfo.PropertyType);
+                    }
+                    else if (propertyInfo.PropertyType == typeof(Enum))
+                    {
+                        propertyType = Enum.GetUnderlyingType(propertyInfo.PropertyType);
+                    }
+                    else
+                    {
+                        propertyType = propertyInfo.PropertyType;
+                    }
+
+                    if (reader[i] == DBNull.Value)
+                    {
+                        propertyInfo.SetValue(t, null);                        
+                    }
+                    else if (propertyType == typeof(int))
+                    {
+                        propertyInfo.SetValue(t, Convert.ToInt32(reader[i]));
+                    }
+                    else if (propertyType == typeof(double))
+                    {
+                        propertyInfo.SetValue(t, Convert.ToDouble(reader[i]));
+                    }
+                    else if (propertyType == typeof(DateTime))
+                    {
+                        propertyInfo.SetValue(t, Convert.ToDateTime(reader[i]));
+                    }
+                    else if (propertyType == typeof(bool))
+                    {
+                        propertyInfo.SetValue(t, Convert.ToBoolean(reader[i]));
+                    }
+                    else
+                    {
+                        propertyInfo.SetValue(t, reader[i] == DBNull.Value ? null : reader[i]);
+                    }
                 }
 
                 return t;
