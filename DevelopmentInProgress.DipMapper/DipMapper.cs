@@ -667,20 +667,20 @@ namespace DevelopmentInProgress.DipMapper
                 }
             }
 
+            if (genericParameters != null)
+            {
+                foreach (var kvp in genericParameters)
+                {
+                    DbHelpers[connType].AddDataParameter(command, kvp.Key, kvp.Value);
+                }
+            }
+
             if (dbDataParametersWhereClause != null)
             {
                 foreach (var dbDataParameter in dbDataParametersWhereClause)
                 {
                     dbDataParameter.ParameterName = DbHelpers[connType].GetParameterName(dbDataParameter.ParameterName, true);
                     command.Parameters.Add(dbDataParameter);
-                }
-            }
-
-            if (genericParameters != null)
-            {
-                foreach (var kvp in genericParameters)
-                {
-                    DbHelpers[connType].AddDataParameter(command, kvp.Key, kvp.Value);
                 }
             }
 
