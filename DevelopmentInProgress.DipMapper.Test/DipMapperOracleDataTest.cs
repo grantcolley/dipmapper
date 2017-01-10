@@ -1,272 +1,278 @@
-﻿//using System;
-//using System.Collections.Generic;
-//using System.Linq;
-//using Microsoft.VisualStudio.TestTools.UnitTesting;
-//using Oracle.ManagedDataAccess.Client;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Oracle.ManagedDataAccess.Client;
 
-//namespace DevelopmentInProgress.DipMapper.Test
-//{
-//    [TestClass]
-//    public class DipMapperOracleDataTest
-//    {
-//        private static string connectionString = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=XE)));User Id=dipmapper;Password=dipmapper;";
+namespace DevelopmentInProgress.DipMapper.Test
+{
+    [TestClass]
+    public class DipMapperOracleDataTest
+    {
+        private static string connectionString = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=XE)));User Id=dipmapper;Password=dipmapper;";
 
-//        [ClassInitialize]
-//        public static void ClassInitialise(TestContext testContext)
-//        {
-//            using (var conn = new OracleConnection(connectionString))
-//            {
-//                var createTable = "  CREATE TABLE \"DIPMAPPER\".\"ACTIVITYORA\""
-//                                  + "(	\"ID\" NUMBER(*,0) NOT NULL ENABLE, "
-//                                  + "	\"NAME\" VARCHAR2(50 BYTE), "
-//                                  + "	\"STATUS\" FLOAT(126), "
-//                                  + "	\"ISACTIVE\" NUMBER(1,0), "
-//                                  + "	\"CREATED\" TIMESTAMP (6), "
-//                                  + "	\"UPDATED\" TIMESTAMP (6), "
-//                                  + "	\"ACTIVITYTYPE\" NUMBER(1,0))";
+        [ClassInitialize]
+        public static void ClassInitialise(TestContext testContext)
+        {
+            using (var conn = new OracleConnection(connectionString))
+            {
+                var createTable = "  CREATE TABLE \"DIPMAPPER\".\"ACTIVITYORA\""
+                                  + "(	\"ID\" NUMBER(*,0) NOT NULL ENABLE, "
+                                  + "	\"NAME\" VARCHAR2(50 BYTE), "
+                                  + "	\"STATUS\" FLOAT(126), "
+                                  + "	\"ISACTIVE\" NUMBER(1,0), "
+                                  + "	\"CREATED\" TIMESTAMP (6), "
+                                  + "	\"UPDATED\" TIMESTAMP (6), "
+                                  + "	\"ACTIVITYTYPE\" NUMBER(1,0))";
 
-//                conn.ExecuteNonQuery(createTable);
+                conn.ExecuteNonQuery(createTable);
 
-//                var createSequence = "CREATE SEQUENCE \"DIPMAPPER\".\"ActivityOra_seq\""
-//                                     + "  MINVALUE 1 "
-//                                     + "  START WITH 1 "
-//                                     + "  INCREMENT BY 1 "
-//                                     + "  NOCACHE";
+                var createSequence = "CREATE SEQUENCE \"DIPMAPPER\".\"ActivityOra_seq\""
+                                     + "  MINVALUE 1 "
+                                     + "  START WITH 1 "
+                                     + "  INCREMENT BY 1 "
+                                     + "  NOCACHE";
 
-//                conn.ExecuteNonQuery(createSequence);
+                conn.ExecuteNonQuery(createSequence);
 
-//                var createProc = "CREATE OR REPLACE PROCEDURE \"DIPMAPPER\".\"GETACTIVITIES\""
-//                                 + " ( "
-//                                 + "   ISACTIVE IN NUMBER "
-//                                 + " ) AS "
-//                                 + " BEGIN "
-//                                 + "   select ID , "
-//                                 + " NAME , "
-//                                 + " STATUS , "
-//                                 + " ISACTIVE , "
-//                                 + " CREATED , "
-//                                 + " UPDATED , "
-//                                 + " ACTIVITYTYPE  from ACTIVITYORA where IsActive = ISACTIVE;  "
-//                                 + " END GETACTIVITIES;";
+                var createProc = "CREATE OR REPLACE PROCEDURE \"DIPMAPPER\".\"GETACTIVITIES\""
+                                 + " ( "
+                                 + "   pIsActive IN NUMBER, "
+                                 + "   pCursor OUT SYS_REFCURSOR "
+                                 + " ) AS "
+                                 + " BEGIN "
+                                 + " open pCursor for "
+                                 + "   select ID , "
+                                 + " NAME , "
+                                 + " STATUS , "
+                                 + " ISACTIVE , "
+                                 + " CREATED , "
+                                 + " UPDATED , "
+                                 + " ACTIVITYTYPE  from ACTIVITYORA where IsActive = pIsActive;  "
+                                 + " END GETACTIVITIES;";
 
-//                conn.ExecuteNonQuery(createProc.ToString());
-//            }
-//        }
+                conn.ExecuteNonQuery(createProc.ToString());
+            }
+        }
 
-//        [ClassCleanup]
-//        public static void ClassCleanup()
-//        {
-//            using (var conn = new OracleConnection(connectionString))
-//            {
-//                conn.ExecuteNonQuery("DROP TABLE \"DIPMAPPER\".\"ACTIVITYORA\"");
-//                conn.ExecuteNonQuery("DROP SEQUENCE \"DIPMAPPER\".\"ActivityOra_seq\"");
-//                conn.ExecuteNonQuery("DROP PROCEDURE \"DIPMAPPER\".\"GETACTIVITIES\"");
-//            }
-//        }
+        [ClassCleanup]
+        public static void ClassCleanup()
+        {
+            using (var conn = new OracleConnection(connectionString))
+            {
+                conn.ExecuteNonQuery("DROP TABLE \"DIPMAPPER\".\"ACTIVITYORA\"");
+                conn.ExecuteNonQuery("DROP SEQUENCE \"DIPMAPPER\".\"ActivityOra_seq\"");
+                conn.ExecuteNonQuery("DROP PROCEDURE \"DIPMAPPER\".\"GETACTIVITIES\"");
+            }
+        }
 
-//        [TestMethod]
-//        public void DipMapper_Database_Test()
-//        {
-//            // Arrange
-//            var read = new ActivityOra()
-//            {
-//                Name = "Read",
-//                Status = 1,
-//                IsActive = true,
-//                Created = DateTime.Today,
-//                Updated = DateTime.Today,
-//                ActivityType = ActivityTypeEnum.Shared,
-//            };
+        [TestMethod]
+        public void DipMapper_Database_Test()
+        {
+            // Arrange
+            var read = new ActivityOra()
+            {
+                Name = "Read",
+                Status = 1,
+                IsActive = true,
+                Created = DateTime.Today,
+                Updated = DateTime.Today,
+                ActivityType = ActivityTypeEnum.Shared,
+            };
 
-//            var write = new ActivityOra()
-//            {
-//                Name = "Write",
-//                Status = 2,
-//                IsActive = true,
-//                Created = DateTime.Today.AddDays(1),
-//                Updated = DateTime.Today.AddDays(1),
-//                ActivityType = ActivityTypeEnum.Private,
-//            };
+            var write = new ActivityOra()
+            {
+                Name = "Write",
+                Status = 2,
+                IsActive = true,
+                Created = DateTime.Today.AddDays(1),
+                Updated = DateTime.Today.AddDays(1),
+                ActivityType = ActivityTypeEnum.Private,
+            };
 
-//            var email = new ActivityOra()
-//            {
-//                Name = "Email",
-//                Status = 3,
-//                IsActive = false,
-//                Created = DateTime.Today.AddDays(2),
-//                Updated = null,
-//                ActivityType = ActivityTypeEnum.Public,
-//            };
+            var email = new ActivityOra()
+            {
+                Name = "Email",
+                Status = 3,
+                IsActive = false,
+                Created = DateTime.Today.AddDays(2),
+                Updated = null,
+                ActivityType = ActivityTypeEnum.Public,
+            };
 
-//            using (var conn = new OracleConnection(connectionString))
-//            {
-//                // Test Insert /////////////////////////////////////
-//                // Act 
-//                read.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL"));
-//                read = conn.Insert<ActivityOra>(read);
+            using (var conn = new OracleConnection(connectionString))
+            {
+                // Test Insert /////////////////////////////////////
+                // Act 
+                read.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL"));
+                read = conn.Insert<ActivityOra>(read);
 
-//                write.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL"));
-//                write = conn.Insert<ActivityOra>(write);
+                write.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL"));
+                write = conn.Insert<ActivityOra>(write);
 
-//                email.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL"));
-//                email = conn.Insert<ActivityOra>(email);
+                email.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL"));
+                email = conn.Insert<ActivityOra>(email);
 
-//                // Assert
-//                Assert.AreEqual(read.Id, 1);
-//                Assert.AreEqual(read.Name, "Read");
-//                Assert.AreEqual(write.Id, 2);
-//                Assert.AreEqual(write.Name, "Write");
-//                Assert.AreEqual(email.Id, 3);
-//                Assert.AreEqual(email.Name, "Email");
-//                ////////////////////////////////////////////////////
+                // Assert
+                Assert.AreEqual(read.Id, 1);
+                Assert.AreEqual(read.Name, "Read");
+                Assert.AreEqual(write.Id, 2);
+                Assert.AreEqual(write.Name, "Write");
+                Assert.AreEqual(email.Id, 3);
+                Assert.AreEqual(email.Name, "Email");
+                ////////////////////////////////////////////////////
 
-//                // Test Select Single //////////////////////////////
-//                // Act
-//                var activity1 = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 2 } });
-//                var activity2 = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 3 } });
-//                var activity3 = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1 } });
+                // Test Select Single //////////////////////////////
+                // Act
+                var activity1 = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 2 } });
+                var activity2 = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 3 } });
+                var activity3 = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1 } });
 
-//                // Assert
-//                Assert.AreEqual(activity1.Id, 2);
-//                Assert.AreEqual(activity1.Name, "Write");
-//                Assert.AreEqual(activity1.Status, 2);
-//                Assert.AreEqual(activity1.IsActive, true);
-//                Assert.AreEqual(activity1.Created, DateTime.Today.AddDays(1));
-//                Assert.AreEqual(activity1.Updated, DateTime.Today.AddDays(1));
-//                Assert.AreEqual(activity1.ActivityType, ActivityTypeEnum.Private);
+                // Assert
+                Assert.AreEqual(activity1.Id, 2);
+                Assert.AreEqual(activity1.Name, "Write");
+                Assert.AreEqual(activity1.Status, 2);
+                Assert.AreEqual(activity1.IsActive, true);
+                Assert.AreEqual(activity1.Created, DateTime.Today.AddDays(1));
+                Assert.AreEqual(activity1.Updated, DateTime.Today.AddDays(1));
+                Assert.AreEqual(activity1.ActivityType, ActivityTypeEnum.Private);
 
-//                Assert.AreEqual(activity2.Id, 3);
-//                Assert.AreEqual(activity2.Name, "Email");
-//                Assert.AreEqual(activity2.Status, 3);
-//                Assert.AreEqual(activity2.IsActive, false);
-//                Assert.AreEqual(activity2.Created, DateTime.Today.AddDays(2));
-//                Assert.AreEqual(activity2.Updated, null);
-//                Assert.AreEqual(activity2.ActivityType, ActivityTypeEnum.Public);
+                Assert.AreEqual(activity2.Id, 3);
+                Assert.AreEqual(activity2.Name, "Email");
+                Assert.AreEqual(activity2.Status, 3);
+                Assert.AreEqual(activity2.IsActive, false);
+                Assert.AreEqual(activity2.Created, DateTime.Today.AddDays(2));
+                Assert.AreEqual(activity2.Updated, null);
+                Assert.AreEqual(activity2.ActivityType, ActivityTypeEnum.Public);
 
-//                Assert.AreEqual(activity3.Id, 1);
-//                Assert.AreEqual(activity3.Name, "Read");
-//                Assert.AreEqual(activity3.Status, 1);
-//                Assert.AreEqual(activity3.IsActive, true);
-//                Assert.AreEqual(activity3.Created, DateTime.Today);
-//                Assert.AreEqual(activity3.Updated, DateTime.Today);
-//                Assert.AreEqual(activity3.ActivityType, ActivityTypeEnum.Shared);
-//                ////////////////////////////////////////////////////
+                Assert.AreEqual(activity3.Id, 1);
+                Assert.AreEqual(activity3.Name, "Read");
+                Assert.AreEqual(activity3.Status, 1);
+                Assert.AreEqual(activity3.IsActive, true);
+                Assert.AreEqual(activity3.Created, DateTime.Today);
+                Assert.AreEqual(activity3.Updated, DateTime.Today);
+                Assert.AreEqual(activity3.ActivityType, ActivityTypeEnum.Shared);
+                ////////////////////////////////////////////////////
 
-//                // Single return none //////////////////////////////
-//                // Act
-//                var admin = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1000 } });
+                // Single return none //////////////////////////////
+                // Act
+                var admin = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1000 } });
 
-//                // Assert
-//                Assert.IsNull(admin);
-//                ////////////////////////////////////////////////////
+                // Assert
+                Assert.IsNull(admin);
+                ////////////////////////////////////////////////////
 
-//                // Test Select Many ////////////////////////////////
-//                // Act
-//                var activities = conn.Select<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 1 } });
+                // Test Select Many ////////////////////////////////
+                // Act
+                var activities = conn.Select<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 1 } });
 
-//                // Assert
-//                Assert.AreEqual(activities.Count(), 2);
-//                Assert.AreEqual(activities.ElementAt(0).Id, 1);
-//                Assert.AreEqual(activities.ElementAt(0).Name, "Read");
-//                Assert.AreEqual(activities.ElementAt(1).Id, 2);
-//                Assert.AreEqual(activities.ElementAt(1).Name, "Write");
-//                ////////////////////////////////////////////////////
+                // Assert
+                Assert.AreEqual(activities.Count(), 2);
+                Assert.AreEqual(activities.ElementAt(0).Id, 1);
+                Assert.AreEqual(activities.ElementAt(0).Name, "Read");
+                Assert.AreEqual(activities.ElementAt(1).Id, 2);
+                Assert.AreEqual(activities.ElementAt(1).Name, "Write");
+                ////////////////////////////////////////////////////
 
-//                // Select return none //////////////////////////////
-//                // Act
-//                var internals = conn.Select<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "ActivityType", Value = 1000 } });
+                // Select return none //////////////////////////////
+                // Act
+                var internals = conn.Select<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "ActivityType", Value = 1000 } });
 
-//                // Assert
-//                Assert.AreEqual(internals.Count(), 0);
-//                ////////////////////////////////////////////////////
+                // Assert
+                Assert.AreEqual(internals.Count(), 0);
+                ////////////////////////////////////////////////////
 
-//                // ExecuteSql //////////////////////////////////////
-//                // Arrange
-//                activities = null;
-//                var sql = "SELECT * FROM ActivityOra WHERE IsActive = 1";
+                // ExecuteSql //////////////////////////////////////
+                // Arrange
+                activities = null;
+                var sql = "SELECT * FROM ActivityOra WHERE IsActive = 1";
 
-//                // Act 
-//                activities = conn.ExecuteSql<ActivityOra>(sql);
+                // Act 
+                activities = conn.ExecuteSql<ActivityOra>(sql);
 
-//                // Assert
-//                Assert.AreEqual(activities.Count(), 2);
-//                Assert.AreEqual(activities.ElementAt(0).Id, 1);
-//                Assert.AreEqual(activities.ElementAt(0).Name, "Read");
-//                Assert.AreEqual(activities.ElementAt(1).Id, 2);
-//                Assert.AreEqual(activities.ElementAt(1).Name, "Write");
-//                ////////////////////////////////////////////////////
+                // Assert
+                Assert.AreEqual(activities.Count(), 2);
+                Assert.AreEqual(activities.ElementAt(0).Id, 1);
+                Assert.AreEqual(activities.ElementAt(0).Name, "Read");
+                Assert.AreEqual(activities.ElementAt(1).Id, 2);
+                Assert.AreEqual(activities.ElementAt(1).Name, "Write");
+                ////////////////////////////////////////////////////
 
-//                //// ExecuteProcedure ////////////////////////////////
-//                //// Arrange
-//                //activities = null;
+                //// ExecuteProcedure ////////////////////////////////
+                //// Arrange
+                activities = null;
+                var parameters = new List<OracleParameter>();
+                parameters.Add(new OracleParameter() { ParameterName = "IsActive", Value = 1 });
+                parameters.Add(new OracleParameter() { ParameterName = "cursor", OracleDbType  = OracleDbType.RefCursor, Direction = ParameterDirection.Output});
 
-//                //// Act 
-//                //activities = conn.ExecuteProcedure<ActivityOra>("GetActivities", new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 1 } });
+                // Act 
+                activities = conn.ExecuteProcedure<ActivityOra>("GetActivities", parameters);
 
-//                //// Assert
-//                //Assert.AreEqual(activities.Count(), 2);
-//                //Assert.AreEqual(activities.ElementAt(0).Id, 1);
-//                //Assert.AreEqual(activities.ElementAt(0).Name, "Read");
-//                //Assert.AreEqual(activities.ElementAt(1).Id, 2);
-//                //Assert.AreEqual(activities.ElementAt(1).Name, "Write");
-//                //////////////////////////////////////////////////////
+                // Assert
+                Assert.AreEqual(activities.Count(), 2);
+                Assert.AreEqual(activities.ElementAt(0).Id, 1);
+                Assert.AreEqual(activities.ElementAt(0).Name, "Read");
+                Assert.AreEqual(activities.ElementAt(1).Id, 2);
+                Assert.AreEqual(activities.ElementAt(1).Name, "Write");
+                ////////////////////////////////////////////////////
 
-//                // ExecuteScalar ///////////////////////////////////
-//                // Act
-//                var result = conn.ExecuteScalar("SELECT Name FROM ActivityOra WHERE Id = 2");
+                // ExecuteScalar ///////////////////////////////////
+                // Act
+                var result = conn.ExecuteScalar("SELECT Name FROM ActivityOra WHERE Id = 2");
 
-//                // Assert
-//                Assert.AreEqual(result, "Write");
-//                ////////////////////////////////////////////////////
+                // Assert
+                Assert.AreEqual(result, "Write");
+                ////////////////////////////////////////////////////
 
-//                // Update single ///////////////////////////////////
-//                // Arrange
-//                read.Name = "Read Only";
+                // Update single ///////////////////////////////////
+                // Arrange
+                read.Name = "Read Only";
 
-//                // Act
-//                conn.Update(read, new OracleParameter() { ParameterName = "Id", Value = 1 });
+                // Act
+                conn.Update(read, new OracleParameter() { ParameterName = "Id", Value = 1 });
 
-//                // Assert
-//                var readOnly = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1 } });
-//                Assert.AreEqual(readOnly.Name, "Read Only");
-//                Assert.AreEqual(readOnly.Id, 1);
-//                ////////////////////////////////////////////////////
+                // Assert
+                var readOnly = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1 } });
+                Assert.AreEqual(readOnly.Name, "Read Only");
+                Assert.AreEqual(readOnly.Id, 1);
+                ////////////////////////////////////////////////////
 
-//                // Update single /////////////////////////////////////
-//                // Arrange 
-//                readOnly.IsActive = false;
-//                write.IsActive = false;
+                // Update single /////////////////////////////////////
+                // Arrange 
+                readOnly.IsActive = false;
+                write.IsActive = false;
 
-//                // Act
-//                conn.Update<ActivityOra>(readOnly, new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 0 } }, new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 1 } });
-//                conn.Update<ActivityOra>(write, new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 0 } }, new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 1 } });
+                // Act
+                conn.Update<ActivityOra>(readOnly, new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 0 } }, new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 1 } });
+                conn.Update<ActivityOra>(write, new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 0 } }, new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 1 } });
 
-//                // Assert
-//                var updated = conn.Select<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 0 } });
-//                Assert.AreEqual(updated.Count(), 3);
-//                ////////////////////////////////////////////////////
+                // Assert
+                var updated = conn.Select<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 0 } });
+                Assert.AreEqual(updated.Count(), 3);
+                ////////////////////////////////////////////////////
 
-//                // Delete single ///////////////////////////////////
-//                // Act
-//                conn.Delete<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1 } });
+                // Delete single ///////////////////////////////////
+                // Act
+                conn.Delete<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1 } });
 
-//                // Assert
-//                readOnly = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1 } });
-//                Assert.IsNull(readOnly);
+                // Assert
+                readOnly = conn.Single<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = 1 } });
+                Assert.IsNull(readOnly);
 
-//                activities = conn.Select<ActivityOra>();
-//                Assert.AreEqual(activities.Count(), 2);
-//                ////////////////////////////////////////////////////
+                activities = conn.Select<ActivityOra>();
+                Assert.AreEqual(activities.Count(), 2);
+                ////////////////////////////////////////////////////
 
-//                // Delete many /////////////////////////////////////
-//                // Act
-//                conn.Delete<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 0 } });
+                // Delete many /////////////////////////////////////
+                // Act
+                conn.Delete<ActivityOra>(new List<OracleParameter>() { new OracleParameter() { ParameterName = "IsActive", Value = 0 } });
 
-//                // Assert
-//                activities = conn.Select<ActivityOra>();
-//                Assert.AreEqual(activities.Count(), 0);
-//                ////////////////////////////////////////////////////
-//            }
-//        }
-//    }
-//}
+                // Assert
+                activities = conn.Select<ActivityOra>();
+                Assert.AreEqual(activities.Count(), 0);
+                ////////////////////////////////////////////////////
+            }
+        }
+    }
+}
