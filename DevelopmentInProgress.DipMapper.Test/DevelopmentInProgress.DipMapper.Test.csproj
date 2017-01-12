@@ -35,6 +35,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="MySql.Data, Version=6.9.9.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
+      <HintPath>..\packages\MySql.Data.6.9.9\lib\net45\MySql.Data.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Oracle.ManagedDataAccess, Version=4.121.2.0, Culture=neutral, PublicKeyToken=89b483f429c47342, processorArchitecture=MSIL">
       <HintPath>..\packages\Oracle.ManagedDataAccess.12.1.24160719\lib\net40\Oracle.ManagedDataAccess.dll</HintPath>
       <Private>True</Private>
@@ -59,6 +63,8 @@
     <Compile Include="ActivityType.cs" />
     <Compile Include="DipMapperMsSqlDataTest.cs" />
     <Compile Include="DipMapperMsSqlTest.cs" />
+    <Compile Include="DipMapperMySqlDataTest.cs" />
+    <Compile Include="DipMapperMySqlTest.cs" />
     <Compile Include="DipMapperOracleDataTest.cs" />
     <Compile Include="DipMapperOracleTest.cs" />
     <Compile Include="DipMapperTest.cs" />
