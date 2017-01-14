@@ -11,6 +11,7 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
   [Inserting a record](#inserting-a-record)   
   [Sql Server Insert](#sql-server-insert)   
   [Oracle Insert](#oracle-insert)   
+  [MySql Insert](#mysql-insert)
   [Select a single record](#select-a-single-record)  
   [Select many records](#select-many-records)  
   [Update a record](#update-a-record)  
@@ -82,6 +83,35 @@ For the most part usage is the same across different databases. Some differences
             VALUES (:Id, :Name, :Status, :IsActive, :Created, :Updated, :ActivityType)
 ```
 
+#### MySql Insert
+```C#
+            var read = new Activity()
+            {
+                Name = "Read",
+                Level = 1,
+                IsActive = true,
+                Created = DateTime.Today,
+                Updated = DateTime.Today,
+                ActivityType = ActivityTypeEnum.Shared,
+            };
+                
+            using (var conn = new SqlConnection(connectionString))
+            {
+                // Insert a record passing in the identity field name.
+                read = conn.Insert(read, "Id");
+            }
+            
+            // Insert retuns the object fully populated including  
+            // auto-generated identifier and other default value.
+            Assert.AreEqual(read.Id, 1)
+```
+*SQL generated*
+```sql
+            INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) 
+            VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);
+            SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType 
+            FROM Activity WHERE Id = SCOPE_IDENTITY();
+```
 ### Select a single record
 ```C#
             var parameters = new Dictionary<string, object>() { { "Id", 123 } };
