@@ -44,8 +44,8 @@ For the most part usage is the same across different databases. Some differences
                 read = conn.Insert(read, "Id");
             }
             
-            // Insert retuns the object fully populated including  
-            // auto-generated identifier and other default value.
+            // Insert retuns the object fully populated  
+            // including the auto-generated identifier.
             Assert.AreEqual(read.Id, 1)
 ```
 *SQL generated*
@@ -95,22 +95,22 @@ For the most part usage is the same across different databases. Some differences
                 ActivityType = ActivityTypeEnum.Shared,
             };
                 
-            using (var conn = new SqlConnection(connectionString))
+            using (var conn = new MySqlConnection(connectionString))
             {
                 // Insert a record passing in the identity field name.
                 read = conn.Insert(read, "Id");
             }
             
-            // Insert retuns the object fully populated including  
-            // auto-generated identifier and other default value.
+            // Insert retuns the object fully populated
+            // including the auto-generated identifier.
             Assert.AreEqual(read.Id, 1)
 ```
 *SQL generated*
 ```sql
             INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) 
-            VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);
+            VALUES (?Name, ?Level, ?IsActive, ?Created, ?Updated, ?ActivityType);
             SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType 
-            FROM Activity WHERE Id = SCOPE_IDENTITY();
+            FROM Activity WHERE Id = LAST_INSERT_ID();
 ```
 ### Select a single record
 ```C#
@@ -127,7 +127,7 @@ For the most part usage is the same across different databases. Some differences
 SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@pId;
 ```
 
-#### Sql Server Insert
+
 ### Select many records
 ```C#
             var parameters = new Dictionary<string, object>() { { "IsActive", true } };
