@@ -8,8 +8,8 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 
 ####Table of Contents
 [Example Usage](#example-usage)  
-* [Sql Server](#sql-server)  
-  [Inserting a record](#inserting-a-record)  
+  [Inserting a record](#inserting-a-record)   
+  [Sql Server Insert](#sql-server-insert) 
   [Select a single record](#select-a-single-record)  
   [Select many records](#select-many-records)  
   [Update a record](#update-a-record)  
@@ -21,10 +21,8 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 
 ## Example usage:
 
-
-###Sql Server
-#### Inserting a record - Sql Server
-
+### Inserting a record
+#### Sql Server Insert
 ```C#
             var read = new Activity()
             {
@@ -46,6 +44,7 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             // auto-generated identifier and other default value.
             Assert.AreEqual(read.Id, 1)
 ```
+*SQL generated*
 ```sql
             // SQL generated
             INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) 
