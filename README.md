@@ -20,6 +20,8 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
   [Execute Non Query](#execute-non-uery)
 
 ## Example usage:
+
+
 ###Sql Server
 #### Inserting a record - Sql Server
 
@@ -43,11 +45,13 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
             // Insert retuns the object fully populated including  
             // auto-generated identifier and other default value.
             Assert.AreEqual(read.Id, 1)
-
+```
+```sql
             // SQL generated
             INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) 
             VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);
-            SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id = SCOPE_IDENTITY();
+            SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType 
+            FROM Activity WHERE Id = SCOPE_IDENTITY();
 ```
 
 ### Select a single record
