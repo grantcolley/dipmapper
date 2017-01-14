@@ -11,7 +11,7 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
   [Inserting a record](#inserting-a-record)   
   [Sql Server Insert](#sql-server-insert)   
   [Oracle Insert](#oracle-insert)   
-  [MySql Insert](#mysql-insert)
+  [MySql Insert](#mysql-insert)   
   [Select a single record](#select-a-single-record)  
   [Select many records](#select-many-records)  
   [Update a record](#update-a-record)  
