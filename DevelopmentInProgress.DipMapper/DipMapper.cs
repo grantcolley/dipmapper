@@ -364,10 +364,6 @@ namespace DevelopmentInProgress.DipMapper
             // classes (but not strings), interfaces, lists, generic 
             // lists or arrays.
             var propertyType = propertyInfo.PropertyType;
-            if (propertyType.IsNotPublic)
-            {
-                return true;
-            }
 
             if (propertyType != typeof(string)
                 && (propertyType.IsClass
