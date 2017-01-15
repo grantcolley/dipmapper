@@ -20,6 +20,8 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
 
   * [Updating records](#updating-records)
     * [Update a record with Identity parameter](#update-a-record-with-identity-parameter)  
+    * [Update specified fields only](#update-specified-fields-only)
+    
   * [Delete a record](#delete-a-record)  
   * [Execute SQL](#execute-sql)  
   * [Execute Stored Procedure](#execute-stored-procedure)  
