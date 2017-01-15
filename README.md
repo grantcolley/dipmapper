@@ -207,6 +207,24 @@ UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Creat
 WHERE Id=@pId;
 ```
 
+#### Update specified fields only
+```C#
+            var updateParameters = new List<SqlParameter>();
+            updateParameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = false });
+
+            var whereParameters = new List<SqlParameter>();
+            whereParameters.Add(new SqlParameter() { ParameterName = "Id", Value = 1 });
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Update(read, updateParameters, whereParameters);
+            }
+```
+*SQL generated*
+```sql
+UPDATE Activity SET IsActive=@IsActive WHERE Id=@pId
+```
+
 ### Delete a record
 ```C#
             var parameters = new Dictionary<string, object>() { { "Id", 123 } };
