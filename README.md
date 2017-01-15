@@ -192,6 +192,7 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 
 ### Updating records
 #### Update a record with Identity parameter
+When updating with a parameter for the identity of the record, that identity field will be excluded from the update statement.
 ```C#
             read.Name = "Read Only";
             
@@ -205,11 +206,13 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 ```
 *SQL generated*
 ```sql
-UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType 
-WHERE Id=@pId;
+UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, 
+       Created=@Created, Updated=@Updated, ActivityType=@ActivityType 
+WHERE  Id=@pId;
 ```
 
 #### Update specified fields only
+When updating specified fields only, two parameter lists are used. One for the fields to be updated and one for the where clause.
 ```C#
             var updateParameters = new List<SqlParameter>();
             updateParameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = false });
