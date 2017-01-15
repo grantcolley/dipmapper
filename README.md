@@ -360,22 +360,24 @@ IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName
 ```
 
 ## Parameter Description and Usage
-- **Dictionary\<string, object> parameters**.List of key value pairs where the key is the field name.  
+- **IEnumerable\<IDbDataParameter> parameters**. Parameter list
+
+- **IEnumerable\<IDbDataParameter> insertParameters**. Parameter list for insert fields.
+
+- **IEnumerable\<IDbDataParameter> updateParameters**. Parameter list for update fields.
+
+- **IEnumerable\<IDbDataParameter> whereClauseParameters**. Parameter list for where clause.
+
+- **IDbDataParameter identity**. Parameter for the identity field.
 
 - **IDbTransaction transaction**. Transaction support.
 
-- **bool closeAndDisposeConnection**. Indicates whether to close the connection and dispose it on completion of database execution. False by default. Typically used when the connection is not created within a `using` block. Do not set to true when using a transaction.
+- **string identityField**. The identity field which is excluded from the SQL generated for the *INSERT* statement.
 
 - **bool optimiseObjectCreation**. A flag to indicate whether to use a *DynamicMethod* emitting IL to create objects of a given type for the results of a query. The *DynamicMethod* delegate is cached for re-use and can offer better performance when creating objects for large recordsets of a specified type. If false (default) then `Activator.CreateInstance<T>()` is used instead for object creation.
 
 - **T target**. The target object to update or insert.
- 
-- **string identityField**. The identity field which is excluded from the SQL generated for the *INSERT* statement. 
 
-- **IEnumerable\<string> skipOnCreateFields**. Additional fields to exclude from the SQL generated not insert the *INSERT* statement. Typically these would be fields where default values set by the database is preferred.
-
-- **IEnumerable\<string> skipOnUpdateFields**. Fields to exclude from the SQL generated for the *UPDATE* statement. Typically these will be read-only fields that shouldn't be updated.
- 
 - **string sql**. SQL statement or stored procedure name, depending on the specified command type.
 
 - **CommandType commandType**. Indicates whether to execute a SQL statement or stored procedure.
