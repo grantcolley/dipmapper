@@ -137,13 +137,13 @@ When passing a list of parameters with the Insert call, only those parameters wi
 This is useful when you want to avoid inserting values into fields where it is preferable to use 
 Default values applied to inserted records by the database table instead. Note the sql generated below.
 ```C#
+            var parameters = new List<SqlParameter>();
+            parameters.Add(new SqlParameter() {ParameterName = "Name", Value = read.Name});
+            parameters.Add(new SqlParameter() { ParameterName = "Level", Value = read.Level });
+                
             using (var conn = new MySqlConnection(connectionString))
             {
-                var parameters = new List<SqlParameter>();
-                parameters.Add(new SqlParameter() {ParameterName = "Name", Value = read.Name});
-                parameters.Add(new SqlParameter() { ParameterName = "Level", Value = read.Level });
-                
-                read = conn.Insert<Activity>(read, "Id", parameters);
+                read = conn.Insert(read, "Id", parameters);
             }
 ```
 *SQL generated*
@@ -156,7 +156,8 @@ Default values applied to inserted records by the database table instead. Note t
 
 ### Select a single record
 ```C#
-            var parameters = new Dictionary<string, object>() { { "Id", 123 } };
+            var parameters = new List<SqlParameter>();
+            parameters.Add(new SqlParameter() { ParameterName = "Id", Value = 1 });
             
             using (var conn = new SqlConnection(connectionString))
             {
