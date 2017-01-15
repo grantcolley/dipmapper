@@ -47,7 +47,13 @@ For the most part usage is the same across different databases. Some differences
             
             // Insert retuns the object fully populated  
             // including the auto-generated identifier.
-            Assert.AreEqual(read.Id, 1)
+            Assert.AreEqual(read.Id, 1);
+            Assert.AreEqual(read.Name, "Read");
+            Assert.AreEqual(read.Level, 1);
+            Assert.AreEqual(read.IsActive, true);
+            Assert.AreEqual(read.Created, DateTime.Today);
+            Assert.AreEqual(read.Updated, DateTime.Today);
+            Assert.AreEqual(read.ActivityType, ActivityTypeEnum.Shared);
 ```
 *SQL generated*
 ```sql
@@ -76,7 +82,13 @@ For the most part usage is the same across different databases. Some differences
                 read = conn.Insert(read);
             }
             
-            Assert.AreEqual(read.Id, 1)
+            Assert.AreEqual(read.Id, 1);
+            Assert.AreEqual(read.Name, "Read");
+            Assert.AreEqual(read.Status, 1);
+            Assert.AreEqual(read.IsActive, true);
+            Assert.AreEqual(read.Created, DateTime.Today);
+            Assert.AreEqual(read.Updated, DateTime.Today);
+            Assert.AreEqual(read.ActivityType, ActivityTypeEnum.Shared);
 ```
 *SQL generated*
 ```sql
@@ -104,7 +116,13 @@ For the most part usage is the same across different databases. Some differences
             
             // Insert retuns the object fully populated
             // including the auto-generated identifier.
-            Assert.AreEqual(read.Id, 1)
+            Assert.AreEqual(read.Id, 1);
+            Assert.AreEqual(read.Name, "Read");
+            Assert.AreEqual(read.Level, 1);
+            Assert.AreEqual(read.IsActive, true);
+            Assert.AreEqual(read.Created, DateTime.Today);
+            Assert.AreEqual(read.Updated, DateTime.Today);
+            Assert.AreEqual(read.ActivityType, ActivityTypeEnum.Shared);
 ```
 *SQL generated*
 ```sql
