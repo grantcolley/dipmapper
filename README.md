@@ -14,8 +14,9 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
     * [MySql Insert](#mysql-insert)   
     * [Insert specified fields only](#insert-specified-fields-only)
 
-  * [Select a single record](#select-a-single-record)  
-  * [Select many records](#select-many-records)  
+  * [Selecting records](#selecting-records)
+    * [Select a single record](#select-a-single-record)  
+    * [Select many records](#select-many-records)  
   * [Update a record](#update-a-record)  
   * [Delete a record](#delete-a-record)  
   * [Execute SQL](#execute-sql)  
@@ -153,8 +154,8 @@ Default values applied to inserted records by the database table instead. Note t
             SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType 
             FROM Activity WHERE Id = SCOPE_IDENTITY();
 ```
-
-### Select a single record
+### Selecting records
+#### Select a single record
 ```C#
             var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Id", Value = 1 });
@@ -171,7 +172,7 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 ```
 
 
-### Select many records
+#### Select many records
 ```C#
             var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = true });
@@ -187,7 +188,7 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@pIsActive;
 ```
 
-### Update a record
+#### Update a record
 ```C#
             read.Name = "Read Only";
             
