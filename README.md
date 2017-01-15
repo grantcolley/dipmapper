@@ -12,7 +12,7 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
     * [Sql Server Insert](#sql-server-insert)   
     * [Oracle Insert](#oracle-insert)   
     * [MySql Insert](#mysql-insert)   
-    * [Inserting specified fields only](#inserting-specified-fields-only)
+    * [Insert specified fields only](#insert-specified-fields-only)
 
   * [Select a single record](#select-a-single-record)  
   * [Select many records](#select-many-records)  
@@ -132,7 +132,7 @@ For the most part usage is the same across different databases. Some differences
             FROM Activity WHERE Id = LAST_INSERT_ID();
 ```
 
-#### Inserting specified fields only
+#### Insert specified fields only
 When passing a list of parameters with the Insert call, only those parameters will be inserted.
 This is useful when you want to avoid inserting values into fields where it is preferable to use 
 Default values applied to inserted records by the database table instead. Note the sql generated below.
