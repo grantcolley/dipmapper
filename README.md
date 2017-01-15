@@ -23,7 +23,7 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
     * [Update specified fields only](#update-specified-fields-only)
     
   * [Delete a record](#delete-a-record)  
-  * [Execute SQL](#execute-sql)  
+  * [Execute SQL statement](#execute-sql-statement)  
   * [Execute Stored Procedure](#execute-stored-procedure)  
   * [Execute Scalar](#execute-scalar)  
   * [Execute Non Query](#execute-non-query)
@@ -196,7 +196,7 @@ When updating with a parameter for the identity of the record, that identity fie
 ```C#
             read.Name = "Read Only";
             
-            var parameter = new SqlParameter() {ParameterName = "Id", Value = 1};
+            var parameter = new SqlParameter() {ParameterName = "Id", Value = read.Id};
 
             using (var conn = new SqlConnection(connectionString))
             {
@@ -218,7 +218,7 @@ When updating specified fields only, two parameter lists are used. One for the f
             updateParameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = false });
 
             var whereParameters = new List<SqlParameter>();
-            whereParameters.Add(new SqlParameter() { ParameterName = "Id", Value = 1 });
+            whereParameters.Add(new SqlParameter() { ParameterName = "Id", Value = read.Id });
 
             using (var conn = new SqlConnection(connectionString))
             {
@@ -232,8 +232,9 @@ UPDATE Activity SET IsActive=@IsActive WHERE Id=@pId
 
 ### Delete a record
 ```C#
-            var parameters = new Dictionary<string, object>() { { "Id", 123 } };
-
+            var parameters = new List<SqlParameter>();
+            parameters.Add(new SqlParameter() { ParameterName = "Id", Value = read.Id });
+            
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Delete<Activity>(parameters);
@@ -245,7 +246,7 @@ UPDATE Activity SET IsActive=@IsActive WHERE Id=@pId
 DELETE FROM Activity WHERE Id=@pId;
 ```
 
-### Execute SQL
+### Execute SQL statement
 ```C#
             var sql = "SELECT * FROM Activity WHERE IsActive = 1;";
 
@@ -257,7 +258,8 @@ DELETE FROM Activity WHERE Id=@pId;
 
 ### Execute Stored Procedure
 ```C#
-            var parameters = new Dictionary<string, object>() { { "IsActive", true } };
+            var parameters = new List<SqlParameter>();
+            parameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = true });
 
             using (var conn = new SqlConnection(connectionString))
             {
