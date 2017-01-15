@@ -173,7 +173,8 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 
 ### Select many records
 ```C#
-            var parameters = new Dictionary<string, object>() { { "IsActive", true } };
+            var parameters = new List<SqlParameter>();
+            parameters.Add(new SqlParameter() { ParameterName = "IsActive", Value = true });
             
             using (var conn = new SqlConnection(connectionString))
             {
