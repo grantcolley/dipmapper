@@ -319,7 +319,8 @@ T Insert<T>(this IDbConnection conn, T target, IEnumerable<IDbDataParameter> ins
 T Insert<T>(this IDbConnection conn, T target, string identityField, IDbTransaction transaction = null)
 ```
 ```C#
-T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<IDbDataParameter> insertParameters, 
+T Insert<T>(this IDbConnection conn, T target, string identityField, 
+                        IEnumerable<IDbDataParameter> insertParameters, 
                         IDbTransaction transaction = null)
 ```
 ```C#
@@ -330,7 +331,8 @@ int Update<T>(this IDbConnection conn, T target, IEnumerable<IDbDataParameter> u
                         IEnumerable<IDbDataParameter> whereClauseParameters, IDbTransaction transaction = null)
 ```
 ```C#
-int Delete<T>(this IDbConnection conn, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null)
+int Delete<T>(this IDbConnection conn, IEnumerable<IDbDataParameter> parameters = null, 
+                        IDbTransaction transaction = null)
 ```
 ```C#
 int ExecuteNonQuery(this IDbConnection conn, string sql, IEnumerable<IDbDataParameter> parameters = null, 
