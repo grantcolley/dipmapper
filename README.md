@@ -156,6 +156,7 @@ Default values applied to inserted records by the database table instead. Note t
             SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType 
             FROM Activity WHERE Id = SCOPE_IDENTITY();
 ```
+
 ### Selecting records
 #### Select a single record
 ```C#
@@ -167,12 +168,10 @@ Default values applied to inserted records by the database table instead. Note t
                 var activity = conn.Single<Activity>(parameters);
             }
 ```
-
 *SQL generated*
 ```sql
 SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@pId;
 ```
-
 
 #### Select many records
 ```C#
@@ -184,7 +183,6 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
                 var activities = conn.Select<Activity>(parameters);
             }
 ```
-
 *SQL generated*
 ```sql
 SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE IsActive=@pIsActive;
@@ -195,19 +193,18 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 ```C#
             read.Name = "Read Only";
             
-            var parameters = new Dictionary<string, object>() { { "Id", 123 } };
-            var skipFieldsOnUpdate = new[] { "Id" };
+            var parameter = new SqlParameter() {ParameterName = "Id", Value = 1};
 
             using (var conn = new SqlConnection(connectionString))
             {
                 // Specify which fields to skip when updating e.g. identity column or read-only fields.
-                conn.Update(read, parameters, skipFieldsOnUpdate);
+                conn.Update(read, parameter);
             }
 ```
-
 *SQL generated*
 ```sql
-UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@pId;
+UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType 
+WHERE Id=@pId;
 ```
 
 ### Delete a record
