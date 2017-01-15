@@ -19,7 +19,7 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
     * [Select many records](#select-many-records)  
 
   * [Updating records](#updating-records)
-    * [Update a record](#update-a-record)  
+    * [Update a record with Identity parameter](#update-a-record-with-identity-parameter)  
   * [Delete a record](#delete-a-record)  
   * [Execute SQL](#execute-sql)  
   * [Execute Stored Procedure](#execute-stored-procedure)  
@@ -189,7 +189,7 @@ SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity W
 ```
 
 ### Updating records
-#### Update a record
+#### Update a record with Identity parameter
 ```C#
             read.Name = "Read Only";
             
