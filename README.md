@@ -32,6 +32,8 @@ DipMapper is a lightweight object mapper that extends IDbConnection allowing you
   
   * [Execute Non Query](#execute-non-query)   
 
+  * [Transaction support](#transaction-support)
+
 * [IDbConnection Extensions](#idbconnection-extensions)
 
 * [Parameter Description and Usage](#parameter-description-and-usage)
@@ -301,6 +303,32 @@ DELETE FROM Activity WHERE Id=@pId;
                 
                 // Stored procedure
                 conn.ExecuteNonQuery("ResetAllActivities", parameters, CommandType.StoredProcedure);
+            }
+```
+
+### Transaction support
+Simple example showing support for transactions.
+```C#
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+
+                var transaction = conn.BeginTransaction();
+
+                try
+                {
+                    conn.Update(read, parameter, transaction);
+
+                    conn.ExecuteProcedure("ActivityAudit", parameter, transaction);
+
+                    transaction.Commit();
+                }
+                catch (Exception)
+                {
+                    transaction.Rollback();
+
+                    throw;
+                }
             }
 ```
 
