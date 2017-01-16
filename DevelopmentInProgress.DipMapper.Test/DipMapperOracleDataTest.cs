@@ -3,7 +3,6 @@
 //using System.Data;
 //using System.Linq;
 //using Microsoft.VisualStudio.TestTools.UnitTesting;
-//using MySql.Data.MySqlClient;
 //using Oracle.ManagedDataAccess.Client;
 
 //namespace DevelopmentInProgress.DipMapper.Test
@@ -286,6 +285,140 @@
 //                Assert.AreEqual(activities.Count(), 0);
 //                ////////////////////////////////////////////////////
 //            }
+//        }
+
+//        [TestMethod]
+//        public void Transaction_Commit()
+//        {
+//            // Assert
+//            var read = new ActivityOra()
+//            {
+//                Name = "Read",
+//                Status = 1,
+//                IsActive = true,
+//                Created = DateTime.Today,
+//                Updated = DateTime.Today,
+//                ActivityType = ActivityTypeEnum.Shared,
+//            };
+
+//            using (var conn = new OracleConnection(connectionString))
+//            {
+//                read.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL"));
+//                read = conn.Insert(read);
+//            }
+
+//            // Act
+//            using (var conn = new OracleConnection(connectionString))
+//            {
+//                conn.Open();
+//                var transaction = conn.BeginTransaction();
+
+//                read.Name = "Read Only";
+
+//                conn.Update(read,
+//                    new List<OracleParameter>() { new OracleParameter() { ParameterName = "Name", Value = read.Name } },
+//                    new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = read.Id } },
+//                    transaction);
+
+//                read.Status = 3;
+
+//                conn.Update(read,
+//                    new List<OracleParameter>() { new OracleParameter() { ParameterName = "Status", Value = read.Status } },
+//                    new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = read.Id } },
+//                    transaction);
+
+//                transaction.Commit();
+//            }
+
+//            // Assert
+//            ActivityOra result;
+//            using (var conn = new OracleConnection(connectionString))
+//            {
+//                result =
+//                    conn.Single<ActivityOra>(new List<OracleParameter>()
+//                    {
+//                        new OracleParameter() {ParameterName = "Id", Value = read.Id}
+//                    });
+//            }
+
+//            Assert.AreEqual(result.Id, read.Id);
+//            Assert.AreEqual(result.Name, "Read Only");
+//            Assert.AreEqual(result.Status, 3);
+//            Assert.AreEqual(result.Created, read.Created);
+//            Assert.AreEqual(result.Updated, read.Updated);
+//            Assert.AreEqual(result.ActivityType, read.ActivityType);
+//        }
+
+//        [TestMethod]
+//        public void Transaction_Rollback()
+//        {
+//            // Assert
+//            var read = new ActivityOra()
+//            {
+//                Name = "Read",
+//                Status = 1,
+//                IsActive = true,
+//                Created = DateTime.Today,
+//                Updated = DateTime.Today,
+//                ActivityType = ActivityTypeEnum.Shared,
+//            };
+
+//            using (var conn = new OracleConnection(connectionString))
+//            {
+//                read.Id = Convert.ToInt32(conn.ExecuteScalar("SELECT \"ActivityOra_seq\".NEXTVAL FROM DUAL"));
+//                read = conn.Insert(read);
+//            }
+
+//            // Act
+//            using (var conn = new OracleConnection(connectionString))
+//            {
+//                conn.Open();
+//                var transaction = conn.BeginTransaction();
+
+//                try
+//                {
+//                    read.Name = "Read Only";
+
+//                    conn.Update(read,
+//                        new List<OracleParameter>() { new OracleParameter() { ParameterName = "Name", Value = read.Name } },
+//                        new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = read.Id } },
+//                        transaction);
+
+//                    read.Status = 3;
+
+//                    conn.Update(read,
+//                        new List<OracleParameter>() { new OracleParameter() { ParameterName = "Level", Value = read.Status } },
+//                        new List<OracleParameter>() { new OracleParameter() { ParameterName = "Id", Value = read.Id } },
+//                        transaction);
+
+//                    int i = 0;
+//                    var e = 1 / i;
+
+//                    transaction.Commit();
+//                }
+//                catch (Exception)
+//                {
+//                    transaction.Rollback();
+//                }
+//            }
+
+//            // Assert
+//            ActivityOra result;
+//            using (var conn = new OracleConnection(connectionString))
+//            {
+//                result =
+//                    conn.Single<ActivityOra>(new List<OracleParameter>()
+//                    {
+//                        new OracleParameter() {ParameterName = "Id", Value = read.Id}
+//                    });
+//            }
+
+//            Assert.AreEqual(result.Id, read.Id);
+//            Assert.AreEqual(result.Name, "Read");
+//            Assert.AreEqual(result.Status, 1);
+//            Assert.AreEqual(result.Created, read.Created);
+//            Assert.AreEqual(result.Updated, read.Updated);
+//            Assert.AreEqual(result.ActivityType, read.ActivityType);
 //        }
 //    }
 //}

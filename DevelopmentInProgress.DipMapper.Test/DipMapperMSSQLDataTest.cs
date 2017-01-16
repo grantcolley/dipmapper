@@ -257,5 +257,137 @@
 //                ////////////////////////////////////////////////////
 //            }
 //        }
+
+//        [TestMethod]
+//        public void Transaction_Commit()
+//        {
+//            // Assert
+//            var read = new Activity()
+//            {
+//                Name = "Read",
+//                Level = 1,
+//                IsActive = true,
+//                Created = DateTime.Today,
+//                Updated = DateTime.Today,
+//                ActivityType = ActivityTypeEnum.Shared,
+//            };
+
+//            using (var conn = new SqlConnection(connectionString))
+//            {
+//                read = conn.Insert(read, "Id");
+//            }
+
+//            // Act
+//            using (var conn = new SqlConnection(connectionString))
+//            {
+//                conn.Open();
+//                var transaction = conn.BeginTransaction();
+
+//                read.Name = "Read Only";
+
+//                conn.Update(read,
+//                    new List<SqlParameter>() {new SqlParameter() {ParameterName = "Name", Value = read.Name}},
+//                    new List<SqlParameter>() {new SqlParameter() {ParameterName = "Id", Value = read.Id}},
+//                    transaction);
+
+//                read.Level = 3;
+
+//                conn.Update(read,
+//                    new List<SqlParameter>() {new SqlParameter() {ParameterName = "Level", Value = read.Level}},
+//                    new List<SqlParameter>() {new SqlParameter() {ParameterName = "Id", Value = read.Id}},
+//                    transaction);
+
+//                transaction.Commit();
+//            }
+
+//            // Assert
+//            Activity result;
+//            using (var conn = new SqlConnection(connectionString))
+//            {
+//                result =
+//                    conn.Single<Activity>(new List<SqlParameter>()
+//                    {
+//                        new SqlParameter() {ParameterName = "Id", Value = read.Id}
+//                    });
+//            }
+
+//            Assert.AreEqual(result.Id, read.Id);
+//            Assert.AreEqual(result.Name, "Read Only");
+//            Assert.AreEqual(result.Level, 3);
+//            Assert.AreEqual(result.Created, read.Created);
+//            Assert.AreEqual(result.Updated, read.Updated);
+//            Assert.AreEqual(result.ActivityType, read.ActivityType);
+//        }
+
+//        [TestMethod]
+//        public void Transaction_Rollback()
+//        {
+//            // Assert
+//            var read = new Activity()
+//            {
+//                Name = "Read",
+//                Level = 1,
+//                IsActive = true,
+//                Created = DateTime.Today,
+//                Updated = DateTime.Today,
+//                ActivityType = ActivityTypeEnum.Shared,
+//            };
+
+//            using (var conn = new SqlConnection(connectionString))
+//            {
+//                read = conn.Insert(read, "Id");
+//            }
+
+//            // Act
+//            using (var conn = new SqlConnection(connectionString))
+//            {
+//                conn.Open();
+//                var transaction = conn.BeginTransaction();
+
+//                try
+//                {
+//                    read.Name = "Read Only";
+
+//                    conn.Update(read,
+//                        new List<SqlParameter>() { new SqlParameter() { ParameterName = "Name", Value = read.Name } },
+//                        new List<SqlParameter>() { new SqlParameter() { ParameterName = "Id", Value = read.Id } },
+//                        transaction);
+
+//                    read.Level = 3;
+
+//                    conn.Update(read,
+//                        new List<SqlParameter>() { new SqlParameter() { ParameterName = "Level", Value = read.Level } },
+//                        new List<SqlParameter>() { new SqlParameter() { ParameterName = "Id", Value = read.Id } },
+//                        transaction);
+
+//                    int i = 0;
+//                    var e = 1 / i;
+
+//                    transaction.Commit();
+//                }
+//                catch (Exception)
+//                {
+//                    transaction.Rollback();
+//                }
+//            }
+
+//            // Assert
+//            Activity result;
+//            using (var conn = new SqlConnection(connectionString))
+//            {
+//                result =
+//                    conn.Single<Activity>(new List<SqlParameter>()
+//                    {
+//                        new SqlParameter() {ParameterName = "Id", Value = read.Id}
+//                    });
+//            }
+
+//            Assert.AreEqual(result.Id, read.Id);
+//            Assert.AreEqual(result.Name, "Read");
+//            Assert.AreEqual(result.Level, 1);
+//            Assert.AreEqual(result.Created, read.Created);
+//            Assert.AreEqual(result.Updated, read.Updated);
+//            Assert.AreEqual(result.ActivityType, read.ActivityType);
+//        }
 //    }
 //}
