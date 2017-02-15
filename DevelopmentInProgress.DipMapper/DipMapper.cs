@@ -15,6 +15,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using FastMember;
 
 [assembly: InternalsVisibleTo("DevelopmentInProgress.DipMapper.Test")]
 
@@ -690,10 +691,11 @@ namespace DevelopmentInProgress.DipMapper
                 reader = command.ExecuteReader();
 
                 var newT = New<T>(optimiseObjectCreation);
+                var typeAccessor = TypeAccessor.Create(typeof(T));
 
                 while (reader.Read())
                 {
-                    var t = DbHelpers[connType].ReadData<T>(reader, newT(), propertyInfos);
+                    var t = DbHelpers[connType].ReadData<T>(reader, newT(), propertyInfos, typeAccessor);
                     result.Add(t);
                 }
             }
@@ -733,7 +735,7 @@ namespace DevelopmentInProgress.DipMapper
             string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField);
             string GetParameterName(string name, bool isWhereClause = false);
             void AddDataParameter(IDbCommand comnmand, string parameterName, object data);
-            T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos);
+            T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos, TypeAccessor typeAccessor);
         }
 
         internal class DefaultDbHelper : IDbHelper
@@ -750,25 +752,18 @@ namespace DevelopmentInProgress.DipMapper
             {
                 return isWhereClause ? "p" + name : name;
             }
-
+            
             public virtual string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
             {
                 return sqlInsert;
             }
 
-            public virtual T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
+            public virtual T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos, TypeAccessor typeAccessor)
             {
-
-                for (int i = 0; i < reader.FieldCount; i++)
+                foreach (var propertyInfo in propertyInfos)
                 {
-                    var propertyInfo = propertyInfos.FirstOrDefault(p => p.Name == reader.GetName(i));
-                    if (propertyInfo == null)
-                    {
-                        throw new Exception("DipMapper exception : Unable to map field " + reader.GetName(i) +
-                                            " to object " + t.GetType().Name);
-                    }
-
-                    propertyInfo.SetValue(t, reader[i] == DBNull.Value ? null : reader[i]);
+                    var value = reader[propertyInfo.Name];
+                    typeAccessor[t, propertyInfo.Name] = value == DBNull.Value ? null : value;
                 }
 
                 return t;
@@ -831,7 +826,7 @@ namespace DevelopmentInProgress.DipMapper
                 return isWhereClause ? ":p" + name : ":" + name;
             }
 
-            public override T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
+            public override T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos, TypeAccessor typeAccessor)
             {
 
                 for (int i = 0; i < reader.FieldCount; i++)
@@ -912,6 +907,21 @@ namespace DevelopmentInProgress.DipMapper
             {
                 return sqlInsert + ";SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = LAST_INSERT_ID();";
             }
+        }
+    }
+
+    public static class IDataReaderExtension
+    {
+        public static T GetValue<T>(this IDataReader reader, string columnName)
+        {
+            var value = reader[columnName];
+            if (value == DBNull.Value
+                || value == null)
+            {
+                return default(T);
+            }
+
+            return (T)value;
         }
     }
 }
