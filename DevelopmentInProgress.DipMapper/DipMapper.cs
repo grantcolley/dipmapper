@@ -691,11 +691,12 @@ namespace DevelopmentInProgress.DipMapper
                 reader = command.ExecuteReader();
 
                 var newT = New<T>(optimiseObjectCreation);
-                var typeAccessor = TypeAccessor.Create(typeof(T));
+                //var typeAccessor = TypeAccessor.Create(typeof(T));
 
                 while (reader.Read())
                 {
-                    var t = DbHelpers[connType].ReadData<T>(reader, newT(), propertyInfos, typeAccessor);
+                    //var t = DbHelpers[connType].ReadData<T>(reader, newT(), propertyInfos, typeAccessor);
+                    var t = DbHelpers[connType].ReadData<T>(reader, newT(), propertyInfos);
                     result.Add(t);
                 }
             }
@@ -735,7 +736,7 @@ namespace DevelopmentInProgress.DipMapper
             string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField);
             string GetParameterName(string name, bool isWhereClause = false);
             void AddDataParameter(IDbCommand comnmand, string parameterName, object data);
-            T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos, TypeAccessor typeAccessor);
+            T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos);
         }
 
         internal class DefaultDbHelper : IDbHelper
@@ -758,12 +759,13 @@ namespace DevelopmentInProgress.DipMapper
                 return sqlInsert;
             }
 
-            public virtual T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos, TypeAccessor typeAccessor)
+            public virtual T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
             {
                 foreach (var propertyInfo in propertyInfos)
                 {
                     var value = reader[propertyInfo.Name];
-                    typeAccessor[t, propertyInfo.Name] = value == DBNull.Value ? null : value;
+                    //typeAccessor[t, propertyInfo.Name] = value == DBNull.Value ? null : value;
+                    propertyInfo.SetValue(t, value);
                 }
 
                 return t;
@@ -826,7 +828,7 @@ namespace DevelopmentInProgress.DipMapper
                 return isWhereClause ? ":p" + name : ":" + name;
             }
 
-            public override T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos, TypeAccessor typeAccessor)
+            public override T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
             {
 
                 for (int i = 0; i < reader.FieldCount; i++)
