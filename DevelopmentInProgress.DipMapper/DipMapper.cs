@@ -15,7 +15,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
-using FastMember;
+using System.Threading;
 
 [assembly: InternalsVisibleTo("DevelopmentInProgress.DipMapper.Test")]
 
@@ -26,26 +26,6 @@ namespace DevelopmentInProgress.DipMapper
     /// </summary>
     public static class DipMapper
     {
-        internal static class DynamicMethodCache
-        {
-            private static readonly IDictionary<Type, object> cache = new ConcurrentDictionary<Type, object>();
-
-            internal static void Add<T>(T value)
-            {
-                cache.Add(typeof(T), value);
-            }
-
-            internal static bool Contains(Type t)
-            {
-                return cache.ContainsKey(t);
-            }
-
-            internal static T Get<T>()
-            {
-                return (T)cache[typeof(T)];
-            }
-        }
-
         internal enum ConnType
         {
             MsSql,
@@ -584,38 +564,6 @@ namespace DevelopmentInProgress.DipMapper
             throw new NotSupportedException("DipMapper exception : Connection " + conn.GetType().Name + " not supported.");
         }
 
-        internal static Func<T> New<T>(bool optimiseObjectCreation) where T : class, new()
-        {
-            if (optimiseObjectCreation)
-            {
-                if (DynamicMethodCache.Contains(typeof(Func<T>)))
-                {
-                    return DynamicMethodCache.Get<Func<T>>();
-                }
-
-                return DynamicMethod<T>();
-            }
-
-            return ActivatorCreateInstance<T>;
-        }
-
-        private static T ActivatorCreateInstance<T>() where T : class, new()
-        {
-            return Activator.CreateInstance<T>();
-        }
-
-        private static Func<T> DynamicMethod<T>() where T : class, new()
-        {
-            var t = typeof (T);
-            var dynMethod = new DynamicMethod("DIPMAPPER_" + typeof(T).Name, t, null, t);
-            ILGenerator ilGen = dynMethod.GetILGenerator();
-            ilGen.Emit(OpCodes.Newobj, t.GetConstructor(Type.EmptyTypes));
-            ilGen.Emit(OpCodes.Ret);
-            var result = (Func<T>)dynMethod.CreateDelegate(typeof(Func<T>));
-            DynamicMethodCache.Add(result);
-            return result;
-        }
-
         private static void OpenConnection(IDbConnection conn)
         {
             if (conn.State == ConnectionState.Closed)
@@ -690,13 +638,9 @@ namespace DevelopmentInProgress.DipMapper
                 OpenConnection(conn);
                 reader = command.ExecuteReader();
 
-                var newT = New<T>(optimiseObjectCreation);
-                //var typeAccessor = TypeAccessor.Create(typeof(T));
-
                 while (reader.Read())
                 {
-                    //var t = DbHelpers[connType].ReadData<T>(reader, newT(), propertyInfos, typeAccessor);
-                    var t = DbHelpers[connType].ReadData<T>(reader, newT(), propertyInfos);
+                    var t = DbHelpers[connType].ReadData<T>(reader, propertyInfos);
                     result.Add(t);
                 }
             }
@@ -736,7 +680,7 @@ namespace DevelopmentInProgress.DipMapper
             string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField);
             string GetParameterName(string name, bool isWhereClause = false);
             void AddDataParameter(IDbCommand comnmand, string parameterName, object data);
-            T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos);
+            T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos);
         }
 
         internal class DefaultDbHelper : IDbHelper
@@ -759,13 +703,15 @@ namespace DevelopmentInProgress.DipMapper
                 return sqlInsert;
             }
 
-            public virtual T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
+            public virtual T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos)
             {
+                var typeHelper = TypeHelper.CreateInstance<T>(propertyInfos);
+                var t = typeHelper.CreateInstance();
+
                 foreach (var propertyInfo in propertyInfos)
                 {
                     var value = reader[propertyInfo.Name];
-                    //typeAccessor[t, propertyInfo.Name] = value == DBNull.Value ? null : value;
-                    propertyInfo.SetValue(t, value);
+                    typeHelper.SetValue(t, propertyInfo.Name, value);                    
                 }
 
                 return t;
@@ -828,8 +774,10 @@ namespace DevelopmentInProgress.DipMapper
                 return isWhereClause ? ":p" + name : ":" + name;
             }
 
-            public override T ReadData<T>(IDataReader reader, T t, IEnumerable<PropertyInfo> propertyInfos)
+            public override T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos)
             {
+                var typeHelper = TypeHelper.CreateInstance<T>(propertyInfos);
+                var t = typeHelper.CreateInstance();
 
                 for (int i = 0; i < reader.FieldCount; i++)
                 {
@@ -923,7 +871,173 @@ namespace DevelopmentInProgress.DipMapper
                 return default(T);
             }
 
-            return (T)value;
+            return (T) value;
+        }
+    }
+
+    public abstract class TypeHelper<T>
+    {
+        public abstract T CreateInstance();
+        public abstract object GetValue(object obj, string propertyName);
+        public abstract void SetValue(object obj, string propertyName, object value);
+    }
+
+    public static class TypeHelper
+    {
+        internal static readonly IDictionary<Type, object> cache = new ConcurrentDictionary<Type, object>();
+
+        private static AssemblyBuilder assemblyBuilder;
+
+        private static ModuleBuilder moduleBuilder;
+
+        private static int counter;
+
+        public static TypeHelper<T> CreateInstance<T>(IEnumerable<PropertyInfo> propertyInfos)
+        {
+            if (cache.ContainsKey(typeof (TypeHelper<T>)))
+            {
+                return (TypeHelper<T>) cache[typeof (TypeHelper<T>)];
+            }
+
+            return BuildInstance<T>(propertyInfos);
+        }
+
+        private static TypeHelper<T> BuildInstance<T>(IEnumerable<PropertyInfo> propertyInfos)
+        {
+            var t = typeof (T);
+            var typeHelperType = typeof (TypeHelper<T>);
+
+            if (assemblyBuilder == null)
+            {
+                assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(
+                    new AssemblyName("TypeHelperAssembly"), AssemblyBuilderAccess.RunAndSave);
+
+                moduleBuilder = assemblyBuilder.DefineDynamicModule("TypeHelperModule");
+            }
+
+            var attribs = typeHelperType.Attributes;
+            attribs = (attribs | TypeAttributes.Sealed | TypeAttributes.Public) &
+                      ~(TypeAttributes.Abstract | TypeAttributes.NotPublic);
+
+            var typeBuilder = moduleBuilder.DefineType("TypeHelper." + t.Name + "_" + GetNextCounterValue(),
+                attribs, typeHelperType);
+
+            var genericTypeParameterBuilder = typeBuilder.DefineGenericParameters(new[] {"T"});
+
+            genericTypeParameterBuilder[0].SetGenericParameterAttributes(
+                GenericParameterAttributes.DefaultConstructorConstraint |
+                GenericParameterAttributes.ReferenceTypeConstraint);
+
+            var baseNew = typeHelperType.GetMethod("CreateInstance");
+
+            var newBody = typeBuilder.DefineMethod(baseNew.Name, baseNew.Attributes & ~MethodAttributes.Abstract,
+                baseNew.ReturnType, Type.EmptyTypes);
+
+            var newIl = newBody.GetILGenerator();
+
+            newIl.Emit(OpCodes.Newobj, t.GetConstructor(Type.EmptyTypes));
+
+            newIl.Emit(OpCodes.Ret);
+
+            typeBuilder.DefineMethodOverride(newBody, baseNew);
+
+            var baseGetValue = typeHelperType.GetMethod("GetValue");
+
+            var getValueBody = typeBuilder.DefineMethod(baseGetValue.Name,
+                baseGetValue.Attributes & ~MethodAttributes.Abstract,
+                typeof (object), new Type[] {typeof (object), typeof (string)});
+
+            var getValueIL = getValueBody.GetILGenerator();
+
+            GetSetValueIL<T>(getValueIL, propertyInfos, true);
+
+            typeBuilder.DefineMethodOverride(getValueBody, baseGetValue);
+
+            var baseSetValue = typeHelperType.GetMethod("SetValue");
+
+            var setValueBody = typeBuilder.DefineMethod(baseSetValue.Name,
+                baseSetValue.Attributes & ~MethodAttributes.Abstract,
+                null, new Type[] {typeof (object), typeof (string), typeof (object)});
+
+            var setValueIL = setValueBody.GetILGenerator();
+
+            GetSetValueIL<T>(setValueIL, propertyInfos, false);
+
+            typeBuilder.DefineMethodOverride(setValueBody, baseSetValue);
+
+            var genericTypeHelper =
+                (TypeHelper<T>)
+                    Activator.CreateInstance(typeBuilder.CreateType().MakeGenericType(new Type[] {t}),
+                        Type.EmptyTypes);
+
+            cache.Add(typeof (TypeHelper<T>), genericTypeHelper);
+
+            return genericTypeHelper;
+        }
+
+        private static int GetNextCounterValue()
+        {
+            return Interlocked.Increment(ref counter);
+        }
+
+        private static void GetSetValueIL<T>(ILGenerator il, IEnumerable<PropertyInfo> propertyInfos, bool isGet)
+        {
+            var numberOfProperties = propertyInfos.Count();
+
+            var labels = new Label[numberOfProperties];
+
+            for (int i = 0; i < numberOfProperties; i++)
+            {
+                labels[i] = il.DefineLabel();
+            }
+
+            for (int i = 0; i < numberOfProperties; i++)
+            {
+                il.Emit(OpCodes.Ldarg_2);
+                il.Emit(OpCodes.Ldstr, propertyInfos.ElementAt(i).Name);
+                il.Emit(OpCodes.Beq, labels[i]);
+            }
+
+            il.Emit(OpCodes.Ldarg_2);
+            il.Emit(OpCodes.Newobj,
+                typeof (ArgumentOutOfRangeException).GetConstructor(new Type[] {typeof (string)}));
+            il.Emit(OpCodes.Throw);
+
+            for (int i = 0; i < numberOfProperties; i++)
+            {
+                var property = propertyInfos.ElementAt(i);
+
+                il.MarkLabel(labels[i]);
+
+                il.Emit(OpCodes.Ldarg_1);
+
+                if (isGet)
+                {
+                    var getAccessor = property.GetGetMethod();
+
+                    il.EmitCall(OpCodes.Callvirt, getAccessor, null);
+
+                    if (property.PropertyType.IsValueType)
+                    {
+                        il.Emit(OpCodes.Box, property.PropertyType);
+                    }
+                }
+                else
+                {
+                    var setAccessor = property.GetSetMethod();
+
+                    il.Emit(OpCodes.Ldarg_3);
+
+                    if (property.PropertyType.IsValueType)
+                    {
+                        il.Emit(OpCodes.Unbox_Any, property.PropertyType);
+                    }
+
+                    il.EmitCall(OpCodes.Callvirt, setAccessor, null);
+                }
+
+                il.Emit(OpCodes.Ret);
+            }
         }
     }
 }
