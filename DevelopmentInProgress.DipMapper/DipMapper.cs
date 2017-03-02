@@ -680,7 +680,7 @@ namespace DevelopmentInProgress.DipMapper
             string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField);
             string GetParameterName(string name, bool isWhereClause = false);
             void AddDataParameter(IDbCommand comnmand, string parameterName, object data);
-            T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos);
+            T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos) where T : class, new();
         }
 
         internal class DefaultDbHelper : IDbHelper
@@ -703,14 +703,19 @@ namespace DevelopmentInProgress.DipMapper
                 return sqlInsert;
             }
 
-            public virtual T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos)
+            public virtual T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos) where T : class, new()
             {
-                var typeHelper = TypeHelper.CreateInstance<T>(propertyInfos);
+                var typeHelper = DynamicTypeHelper.Get<T>(propertyInfos);
                 var t = typeHelper.CreateInstance();
 
                 foreach (var propertyInfo in propertyInfos)
                 {
                     var value = reader[propertyInfo.Name];
+                    if (value == DBNull.Value)
+                    {
+                        value = null;
+                    }
+
                     typeHelper.SetValue(t, propertyInfo.Name, value);                    
                 }
 
@@ -776,7 +781,7 @@ namespace DevelopmentInProgress.DipMapper
 
             public override T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos)
             {
-                var typeHelper = TypeHelper.CreateInstance<T>(propertyInfos);
+                var typeHelper = DynamicTypeHelper.Get<T>(propertyInfos);
                 var t = typeHelper.CreateInstance();
 
                 for (int i = 0; i < reader.FieldCount; i++)
@@ -805,27 +810,27 @@ namespace DevelopmentInProgress.DipMapper
 
                     if (reader[i] == DBNull.Value)
                     {
-                        propertyInfo.SetValue(t, null);                        
+                        typeHelper.SetValue(t, propertyInfo.Name, null);                        
                     }
                     else if (propertyType == typeof(int))
                     {
-                        propertyInfo.SetValue(t, Convert.ToInt32(reader[i]));
+                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToInt32(reader[i]));
                     }
                     else if (propertyType == typeof(double))
                     {
-                        propertyInfo.SetValue(t, Convert.ToDouble(reader[i]));
+                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToDouble(reader[i]));
                     }
                     else if (propertyType == typeof(DateTime))
                     {
-                        propertyInfo.SetValue(t, Convert.ToDateTime(reader[i]));
+                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToDateTime(reader[i]));
                     }
                     else if (propertyType == typeof(bool))
                     {
-                        propertyInfo.SetValue(t, Convert.ToBoolean(reader[i]));
+                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToBoolean(reader[i]));
                     }
                     else
                     {
-                        propertyInfo.SetValue(t, reader[i] == DBNull.Value ? null : reader[i]);
+                        typeHelper.SetValue(t, propertyInfo.Name, reader[i] == DBNull.Value ? null : reader[i]);
                     }
                 }
 
@@ -875,169 +880,130 @@ namespace DevelopmentInProgress.DipMapper
         }
     }
 
-    public abstract class TypeHelper<T>
+    internal class DynamicTypeHelper<T>
     {
-        public abstract T CreateInstance();
-        public abstract object GetValue(object obj, string propertyName);
-        public abstract void SetValue(object obj, string propertyName, object value);
+        private readonly Dictionary<string, Func<T, object>> getters;
+        private readonly Dictionary<string, Action<T, object>> setters;
+
+        public DynamicTypeHelper(Func<T> createInstance,
+            Dictionary<string, Func<T, object>> getters,
+            Dictionary<string, Action<T, object>> setters)
+        {
+            CreateInstance = createInstance;
+            this.getters = getters;
+            this.setters = setters;
+        }
+
+        internal Func<T> CreateInstance { get; private set; }
+
+        internal void SetValue(T target, string fieldName, object value)
+        {
+            if (setters.ContainsKey(fieldName))
+            {
+                setters[fieldName](target, value);
+                return;
+            }
+
+            throw new ArgumentOutOfRangeException(fieldName + " not supported.");
+        }
+
+        internal object GetValue(T target, string fieldName)
+        {
+            if (setters.ContainsKey(fieldName))
+            {
+                return getters[fieldName](target);
+            }
+
+            throw new ArgumentOutOfRangeException(fieldName + " not supported.");
+        }
     }
 
-    public static class TypeHelper
+    internal static class DynamicTypeHelper
     {
         internal static readonly IDictionary<Type, object> cache = new ConcurrentDictionary<Type, object>();
 
-        private static AssemblyBuilder assemblyBuilder;
-
-        private static ModuleBuilder moduleBuilder;
-
         private static int counter;
 
-        public static TypeHelper<T> CreateInstance<T>(IEnumerable<PropertyInfo> propertyInfos)
+        public static DynamicTypeHelper<T> Get<T>(IEnumerable<PropertyInfo> propertyInfos) where T : class, new()
         {
-            if (cache.ContainsKey(typeof (TypeHelper<T>)))
+            var t = typeof(T);
+
+            if (cache.ContainsKey(t))
             {
-                return (TypeHelper<T>) cache[typeof (TypeHelper<T>)];
+                return (DynamicTypeHelper<T>)cache[t];
             }
 
-            return BuildInstance<T>(propertyInfos);
+            var typeHelper = CreateTypeHelper<T>(propertyInfos);
+            cache.Add(t, typeHelper);
+            return typeHelper;
         }
 
-        private static TypeHelper<T> BuildInstance<T>(IEnumerable<PropertyInfo> propertyInfos)
+        private static DynamicTypeHelper<T> CreateTypeHelper<T>(IEnumerable<PropertyInfo> propertyInfos) where T : class, new()
         {
-            var t = typeof (T);
-            var typeHelperType = typeof (TypeHelper<T>);
+            var capacity = propertyInfos.Count() - 1;
+            var getters = new Dictionary<string, Func<T, object>>(capacity);
+            var setters = new Dictionary<string, Action<T, object>>(capacity);
 
-            if (assemblyBuilder == null)
+            var createInstance = CreateInstance<T>();
+
+            foreach (var propertyInfo in propertyInfos)
             {
-                assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(
-                    new AssemblyName("TypeHelperAssembly"), AssemblyBuilderAccess.RunAndSave);
-
-                moduleBuilder = assemblyBuilder.DefineDynamicModule("TypeHelperModule");
+                getters.Add(propertyInfo.Name, GetValue<T>(propertyInfo));
+                setters.Add(propertyInfo.Name, SetValue<T>(propertyInfo));
             }
 
-            var attribs = typeHelperType.Attributes;
-            attribs = (attribs | TypeAttributes.Sealed | TypeAttributes.Public) &
-                      ~(TypeAttributes.Abstract | TypeAttributes.NotPublic);
+            return new DynamicTypeHelper<T>(createInstance, getters, setters);
+        }
 
-            var typeBuilder = moduleBuilder.DefineType("TypeHelper." + t.Name + "_" + GetNextCounterValue(),
-                attribs, typeHelperType);
+        private static Func<T> CreateInstance<T>() where T : class, new()
+        {
+            var t = typeof(T);
+            var methodName = "CreateInstance_" + typeof(T).Name + "_" + GetNextCounterValue();
+            var dynMethod = new DynamicMethod(methodName, t, null, typeof(DynamicTypeHelper).Module);
+            ILGenerator il = dynMethod.GetILGenerator();
+            il.Emit(OpCodes.Newobj, t.GetConstructor(Type.EmptyTypes));
+            il.Emit(OpCodes.Ret);
+            return (Func<T>)dynMethod.CreateDelegate(typeof(Func<T>));
+        }
 
-            var genericTypeParameterBuilder = typeBuilder.DefineGenericParameters(new[] {"T"});
+        private static Func<T, object> GetValue<T>(PropertyInfo propertyInfo)
+        {
+            var getAccessor = propertyInfo.GetGetMethod();
+            var methodName = "GetValue_" + propertyInfo.Name + "_" + GetNextCounterValue();
+            var dynMethod = new DynamicMethod(methodName, typeof(T), new Type[] { typeof(object) },
+                typeof(DynamicTypeHelper).Module);
+            ILGenerator il = dynMethod.GetILGenerator();
+            il.Emit(OpCodes.Ldarg_0);
+            il.EmitCall(OpCodes.Callvirt, getAccessor, null);
+            if (propertyInfo.PropertyType.IsValueType)
+            {
+                il.Emit(OpCodes.Box, propertyInfo.PropertyType);
+            }
+            il.Emit(OpCodes.Ret);
+            return (Func<T, object>)dynMethod.CreateDelegate(typeof(Func<T, object>));
+        }
 
-            genericTypeParameterBuilder[0].SetGenericParameterAttributes(
-                GenericParameterAttributes.DefaultConstructorConstraint |
-                GenericParameterAttributes.ReferenceTypeConstraint);
-
-            var baseNew = typeHelperType.GetMethod("CreateInstance");
-
-            var newBody = typeBuilder.DefineMethod(baseNew.Name, baseNew.Attributes & ~MethodAttributes.Abstract,
-                baseNew.ReturnType, Type.EmptyTypes);
-
-            var newIl = newBody.GetILGenerator();
-
-            newIl.Emit(OpCodes.Newobj, t.GetConstructor(Type.EmptyTypes));
-
-            newIl.Emit(OpCodes.Ret);
-
-            typeBuilder.DefineMethodOverride(newBody, baseNew);
-
-            var baseGetValue = typeHelperType.GetMethod("GetValue");
-
-            var getValueBody = typeBuilder.DefineMethod(baseGetValue.Name,
-                baseGetValue.Attributes & ~MethodAttributes.Abstract,
-                typeof (object), new Type[] {typeof (object), typeof (string)});
-
-            var getValueIL = getValueBody.GetILGenerator();
-
-            GetSetValueIL<T>(getValueIL, propertyInfos, true);
-
-            typeBuilder.DefineMethodOverride(getValueBody, baseGetValue);
-
-            var baseSetValue = typeHelperType.GetMethod("SetValue");
-
-            var setValueBody = typeBuilder.DefineMethod(baseSetValue.Name,
-                baseSetValue.Attributes & ~MethodAttributes.Abstract,
-                null, new Type[] {typeof (object), typeof (string), typeof (object)});
-
-            var setValueIL = setValueBody.GetILGenerator();
-
-            GetSetValueIL<T>(setValueIL, propertyInfos, false);
-
-            typeBuilder.DefineMethodOverride(setValueBody, baseSetValue);
-
-            var genericTypeHelper =
-                (TypeHelper<T>)
-                    Activator.CreateInstance(typeBuilder.CreateType().MakeGenericType(new Type[] {t}),
-                        Type.EmptyTypes);
-
-            cache.Add(typeof (TypeHelper<T>), genericTypeHelper);
-
-            return genericTypeHelper;
+        private static Action<T, object> SetValue<T>(PropertyInfo propertyInfo)
+        {
+            var setAccessor = propertyInfo.GetSetMethod();
+            var methodName = "SetValue_" + propertyInfo.Name + "_" + GetNextCounterValue();
+            var dynMethod = new DynamicMethod(methodName, typeof(void),
+                new Type[] { typeof(T), typeof(object) }, typeof(DynamicTypeHelper).Module);
+            ILGenerator il = dynMethod.GetILGenerator();
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldarg_1);
+            if (propertyInfo.PropertyType.IsValueType)
+            {
+                il.Emit(OpCodes.Unbox_Any, propertyInfo.PropertyType);
+            }
+            il.EmitCall(OpCodes.Callvirt, setAccessor, null);
+            il.Emit(OpCodes.Ret);
+            return (Action<T, object>)dynMethod.CreateDelegate(typeof(Action<T, object>));
         }
 
         private static int GetNextCounterValue()
         {
             return Interlocked.Increment(ref counter);
-        }
-
-        private static void GetSetValueIL<T>(ILGenerator il, IEnumerable<PropertyInfo> propertyInfos, bool isGet)
-        {
-            var numberOfProperties = propertyInfos.Count();
-
-            var labels = new Label[numberOfProperties];
-
-            for (int i = 0; i < numberOfProperties; i++)
-            {
-                labels[i] = il.DefineLabel();
-            }
-
-            for (int i = 0; i < numberOfProperties; i++)
-            {
-                il.Emit(OpCodes.Ldarg_2);
-                il.Emit(OpCodes.Ldstr, propertyInfos.ElementAt(i).Name);
-                il.Emit(OpCodes.Beq, labels[i]);
-            }
-
-            il.Emit(OpCodes.Ldarg_2);
-            il.Emit(OpCodes.Newobj,
-                typeof (ArgumentOutOfRangeException).GetConstructor(new Type[] {typeof (string)}));
-            il.Emit(OpCodes.Throw);
-
-            for (int i = 0; i < numberOfProperties; i++)
-            {
-                var property = propertyInfos.ElementAt(i);
-
-                il.MarkLabel(labels[i]);
-
-                il.Emit(OpCodes.Ldarg_1);
-
-                if (isGet)
-                {
-                    var getAccessor = property.GetGetMethod();
-
-                    il.EmitCall(OpCodes.Callvirt, getAccessor, null);
-
-                    if (property.PropertyType.IsValueType)
-                    {
-                        il.Emit(OpCodes.Box, property.PropertyType);
-                    }
-                }
-                else
-                {
-                    var setAccessor = property.GetSetMethod();
-
-                    il.Emit(OpCodes.Ldarg_3);
-
-                    if (property.PropertyType.IsValueType)
-                    {
-                        il.Emit(OpCodes.Unbox_Any, property.PropertyType);
-                    }
-
-                    il.EmitCall(OpCodes.Callvirt, setAccessor, null);
-                }
-
-                il.Emit(OpCodes.Ret);
-            }
         }
     }
 }
