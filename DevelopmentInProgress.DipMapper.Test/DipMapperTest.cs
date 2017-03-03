@@ -208,60 +208,58 @@ namespace DevelopmentInProgress.DipMapper.Test
         }
 
         [TestMethod]
-        public void New_ActivatorCreateInstance()
+        public void TypeHelper_CreateInstance()
         {
             // Arrange
-            var newT = DipMapper.New<Activity>(false);
+            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var activityHelper = DynamicTypeHelper.Get<Activity>(propertyInfos);
 
             // Act
-            var activity = newT();
-            activity.Name = "Test";
+            var activity = activityHelper.CreateInstance();
+            activityHelper.SetValue(activity, "Name", "Test");
+            var name = activityHelper.GetValue(activity, "Name");
 
             // Assert
             Assert.AreEqual(activity.Name, "Test");
+            Assert.AreEqual(activity.Name, name);
         }
 
         [TestMethod]
-        public void New_DynamicMethod()
+        public void TypeHelper_Cached()
         {
             // Arrange
-            var newT = DipMapper.New<Activity>(true);
+            var activityPropertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var activityHelper = DynamicTypeHelper.Get<Activity>(activityPropertyInfos);
+
+            var genericActivityPropertyInfos = DipMapper.GetPropertyInfos<GenericActivity<int>>();
+            var genericActivityHelper = DynamicTypeHelper.Get<GenericActivity<int>>(genericActivityPropertyInfos);
+
+            var activityHelper2 = DynamicTypeHelper.Get<Activity>(activityPropertyInfos);
+            var genericActivityHelper2 = DynamicTypeHelper.Get<GenericActivity<int>>(genericActivityPropertyInfos);
+
+            var activity1 = activityHelper.CreateInstance();
+            var genericActivity1 = genericActivityHelper.CreateInstance();
+            var activity2 = activityHelper.CreateInstance();
+            var genericActivity2 = genericActivityHelper.CreateInstance();
+            var genericActivity3 = genericActivityHelper.CreateInstance();
 
             // Act
-            var activity = newT();
-            activity.Name = "Test";
+            activityHelper.SetValue(activity1, "Name", "Activity1");
 
-            // Assert
-            Assert.AreEqual(activity.Name, "Test");
-        }
+            genericActivityHelper.SetValue(genericActivity1, "Name", "GenericActivity1");
 
-        [TestMethod]
-        public void New_DynamicMethod_Cached()
-        {
-            // Arrange
-            var newActivity1 = DipMapper.New<Activity>(true);
-            var newGenericActivity1 = DipMapper.New<GenericActivity<int>>(true);
-            var newActivity2 = DipMapper.New<Activity>(true);
-            var newGenericActivity2 = DipMapper.New<GenericActivity<int>>(true);
-            var newGenericActivity3 = DipMapper.New<GenericActivity<Activity>>(true);
+            activityHelper2.SetValue(activity2, "Name", "Activity2");
 
-            // Act
-            var activity1 = newActivity1();
-            activity1.Name = "Activity1";
+            genericActivityHelper2.SetValue(genericActivity2, "Name", "GenericActivity2");
 
-            var genericActivity1 = newGenericActivity1();
-            genericActivity1.Name = "GenericActivity1";
-
-            var activity2 = newActivity2();
-            activity2.Name = "Activity2";
-
-            var genericActivity2 = newGenericActivity2();
-            genericActivity2.Name = "GenericActivity2";
-
-            var genericActivity3 = newGenericActivity3();
             genericActivity3.Name = "GenericActivity3";
 
             // Assert
+            Assert.AreEqual(DynamicTypeHelper.cache.Count, 2);
+            Assert.IsTrue(DynamicTypeHelper.cache.ContainsKey(typeof(Activity)));
+            Assert.IsTrue(DynamicTypeHelper.cache.ContainsKey(typeof(GenericActivity<int>)));
+            Assert.AreSame(activityHelper, activityHelper2);
+            Assert.AreEqual(genericActivityHelper, genericActivityHelper2);
             Assert.AreEqual(activity1.Name, "Activity1");
             Assert.AreEqual(activity2.Name, "Activity2");
             Assert.AreEqual(genericActivity1.Name, "GenericActivity1");
