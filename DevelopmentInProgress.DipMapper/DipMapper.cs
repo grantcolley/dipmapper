@@ -723,6 +723,64 @@ namespace DevelopmentInProgress.DipMapper
             }
         }
 
+        internal class ReadTypeMapperDbHelper : DefaultDbHelper
+        {
+            public override T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos)
+            {
+                var typeHelper = DynamicTypeHelper.Get<T>(propertyInfos);
+                var t = typeHelper.CreateInstance();
+
+                foreach (var propertyInfo in propertyInfos)
+                {
+                    var fieldName = propertyInfo.Name;
+                    Type propertyType;
+                    if (propertyInfo.PropertyType.IsGenericType
+                        && propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                    {
+                        propertyType = Nullable.GetUnderlyingType(propertyInfo.PropertyType);
+                    }
+                    else if (propertyInfo.PropertyType.IsEnum)
+                    {
+                        propertyType = Enum.GetUnderlyingType(propertyInfo.PropertyType);
+                    }
+                    else
+                    {
+                        propertyType = propertyInfo.PropertyType;
+                    }
+
+                    var value = reader[fieldName];
+
+                    if (value == DBNull.Value)
+                    {
+                        typeHelper.SetValue(t, propertyInfo.Name, null);
+                    }
+                    else if (propertyType == typeof(int))
+                    {
+                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToInt32(value));
+                    }
+                    else if (propertyType == typeof(double))
+                    {
+                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToDouble(value));
+                    }
+                    else if (propertyType == typeof(DateTime))
+                    {
+                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToDateTime(value));
+                    }
+                    else if (propertyType == typeof(bool))
+                    {
+                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToBoolean(value));
+                    }
+                    else
+                    {
+                        typeHelper.SetValue(t, propertyInfo.Name, value);
+                    }
+                }
+
+                return t;
+            }
+            
+        }
+
         internal class MsSqlHelper : DefaultDbHelper
         {
             public override void AddDataParameter(IDbCommand command, string parameterName, object data)
@@ -746,7 +804,7 @@ namespace DevelopmentInProgress.DipMapper
             }
         }
 
-        internal class OracleHelper : DefaultDbHelper
+        internal class OracleHelper : ReadTypeMapperDbHelper
         {
             public override void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
@@ -778,67 +836,9 @@ namespace DevelopmentInProgress.DipMapper
 
                 return isWhereClause ? ":p" + name : ":" + name;
             }
-
-            public override T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos)
-            {
-                var typeHelper = DynamicTypeHelper.Get<T>(propertyInfos);
-                var t = typeHelper.CreateInstance();
-
-                for (int i = 0; i < reader.FieldCount; i++)
-                {
-                    var propertyInfo = propertyInfos.FirstOrDefault(p => p.Name.ToUpper() == reader.GetName(i));
-                    if (propertyInfo == null)
-                    {
-                        throw new Exception("DipMapper exception : Unable to map field " + reader.GetName(i) +
-                                            " to object " + t.GetType().Name);
-                    }
-
-                    Type propertyType;
-                    if (propertyInfo.PropertyType.IsGenericType
-                        && propertyInfo.PropertyType.GetGenericTypeDefinition() == typeof (Nullable<>))
-                    {
-                        propertyType = Nullable.GetUnderlyingType(propertyInfo.PropertyType);
-                    }
-                    else if (propertyInfo.PropertyType == typeof(Enum))
-                    {
-                        propertyType = Enum.GetUnderlyingType(propertyInfo.PropertyType);
-                    }
-                    else
-                    {
-                        propertyType = propertyInfo.PropertyType;
-                    }
-
-                    if (reader[i] == DBNull.Value)
-                    {
-                        typeHelper.SetValue(t, propertyInfo.Name, null);                        
-                    }
-                    else if (propertyType == typeof(int))
-                    {
-                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToInt32(reader[i]));
-                    }
-                    else if (propertyType == typeof(double))
-                    {
-                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToDouble(reader[i]));
-                    }
-                    else if (propertyType == typeof(DateTime))
-                    {
-                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToDateTime(reader[i]));
-                    }
-                    else if (propertyType == typeof(bool))
-                    {
-                        typeHelper.SetValue(t, propertyInfo.Name, Convert.ToBoolean(reader[i]));
-                    }
-                    else
-                    {
-                        typeHelper.SetValue(t, propertyInfo.Name, reader[i] == DBNull.Value ? null : reader[i]);
-                    }
-                }
-
-                return t;
-            }
         }
 
-        internal class MySqlHelper : DefaultDbHelper
+        internal class MySqlHelper : ReadTypeMapperDbHelper
         {
             public override void AddDataParameter(IDbCommand command, string parameterName, object data)
             {
