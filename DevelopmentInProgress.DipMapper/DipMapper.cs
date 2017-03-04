@@ -885,16 +885,20 @@ namespace DevelopmentInProgress.DipMapper
         private readonly Dictionary<string, Func<T, object>> getters;
         private readonly Dictionary<string, Action<T, object>> setters;
 
-        public DynamicTypeHelper(Func<T> createInstance,
+        internal DynamicTypeHelper(Func<T> createInstance,
             Dictionary<string, Func<T, object>> getters,
-            Dictionary<string, Action<T, object>> setters)
+            Dictionary<string, Action<T, object>> setters,
+            IEnumerable<string> supportedProperties)
         {
-            CreateInstance = createInstance;
             this.getters = getters;
             this.setters = setters;
+            CreateInstance = createInstance;
+            SupportedProperties = supportedProperties;
         }
 
         internal Func<T> CreateInstance { get; private set; }
+
+        internal IEnumerable<string> SupportedProperties { get; private set; }
 
         internal void SetValue(T target, string fieldName, object value)
         {
@@ -924,7 +928,20 @@ namespace DevelopmentInProgress.DipMapper
 
         private static int counter;
 
-        public static DynamicTypeHelper<T> Get<T>(IEnumerable<PropertyInfo> propertyInfos) where T : class, new()
+        //internal static DynamicTypeHelper<T> Get<T>() where T : class, new()
+        //{
+        //    var t = typeof(T);
+
+        //    if (cache.ContainsKey(t))
+        //    {
+        //        return (DynamicTypeHelper<T>)cache[t];
+        //    }
+
+        //    var propertyInfos = PropertyHelper.GetPropertyInfos<T>();
+        //    return Get<T>(propertyInfos);
+        //}
+
+        internal static DynamicTypeHelper<T> Get<T>(IEnumerable<PropertyInfo> propertyInfos) where T : class, new()
         {
             var t = typeof(T);
 
@@ -941,6 +958,7 @@ namespace DevelopmentInProgress.DipMapper
         private static DynamicTypeHelper<T> CreateTypeHelper<T>(IEnumerable<PropertyInfo> propertyInfos) where T : class, new()
         {
             var capacity = propertyInfos.Count() - 1;
+            var propertyNames = new List<string>();
             var getters = new Dictionary<string, Func<T, object>>(capacity);
             var setters = new Dictionary<string, Action<T, object>>(capacity);
 
@@ -948,11 +966,12 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var propertyInfo in propertyInfos)
             {
+                propertyNames.Add(propertyInfo.Name);
                 getters.Add(propertyInfo.Name, GetValue<T>(propertyInfo));
                 setters.Add(propertyInfo.Name, SetValue<T>(propertyInfo));
             }
 
-            return new DynamicTypeHelper<T>(createInstance, getters, setters);
+            return new DynamicTypeHelper<T>(createInstance, getters, setters, propertyNames);
         }
 
         private static Func<T> CreateInstance<T>() where T : class, new()
