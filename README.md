@@ -341,7 +341,7 @@ T Single<T>(this IDbConnection conn, IEnumerable<IDbDataParameter> parameters = 
 ```
 ```C#
 IEnumerable<T> Select<T>(this IDbConnection conn, IEnumerable<IDbDataParameter> parameters = null, 
-                        IDbTransaction transaction = null, bool optimiseObjectCreation = false)
+                        IDbTransaction transaction = null)
 ```
 ```C#
 T Insert<T>(this IDbConnection conn, T target, IDbTransaction transaction = null)
@@ -378,13 +378,11 @@ object ExecuteScalar(this IDbConnection conn, string sql, IEnumerable<IDbDataPar
                         CommandType commandType = CommandType.Text, IDbTransaction transaction = null)
 ```
 ```C#
-IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, 
-                        bool optimiseObjectCreation = false)
+IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null)
 ```
 ```C#
 IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, 
-                        IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null, 
-                        bool optimiseObjectCreation = false)
+                        IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null)
 ```
 
 ## Parameter Description and Usage
@@ -401,8 +399,6 @@ IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName
 - **IDbTransaction transaction**. Transaction support.
 
 - **string identityField**. The identity field which is excluded from the SQL generated for the *INSERT* statement.
-
-- **bool optimiseObjectCreation**. A flag to indicate whether to use a *DynamicMethod* emitting IL to create objects of a given type for the results of a query. The *DynamicMethod* delegate is cached for re-use and can offer better performance when creating objects for large recordsets of a specified type. If false (default) then `Activator.CreateInstance<T>()` is used instead for object creation.
 
 - **T target**. The target object to update or insert.
 
