@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -101,12 +100,12 @@ namespace DevelopmentInProgress.DipMapper.Test
         public void DefaultDbHelper_GetSqlSelectWithIdentity()
         {
             // Arrange
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var msSqlHelper = new DipMapper.MsSqlHelper();
             var insertSql = "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType)";
 
             // Act
-            var selectWithIdentity = msSqlHelper.GetSqlSelectWithIdentity<Activity>(insertSql, propertyInfos, "Id");
+            var selectWithIdentity = msSqlHelper.GetSqlSelectWithIdentity<Activity>(insertSql, dynamicTypeHelper, "Id");
 
             // Assert
             Assert.AreEqual(selectWithIdentity, insertSql + ";SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id = SCOPE_IDENTITY();");
@@ -125,11 +124,11 @@ namespace DevelopmentInProgress.DipMapper.Test
                 ActivityType = ActivityTypeEnum.Shared
             };
 
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var identity = new SqlParameter() {ParameterName = "Id", Value = activity.Id};
  
             // Act
-            var genericParameters = DipMapper.GetGenericParameters<Activity>(activity, propertyInfos, null, identity);
+            var genericParameters = DipMapper.GetGenericParameters<Activity>(activity, dynamicTypeHelper, null, identity);
 
             // Assert
             Assert.AreEqual(genericParameters.Count(), 6);
@@ -155,12 +154,12 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() {ParameterName = "Id", Value = 3});
 
             // Act
-            var sqlSelect = DipMapper.GetSqlSelect<Activity>(connType, propertyInfos, parameters);
+            var sqlSelect = DipMapper.GetSqlSelect<Activity>(connType, dynamicTypeHelper, parameters);
 
             // Assert
             Assert.AreEqual(sqlSelect, "SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id=@pId");
@@ -206,10 +205,10 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
 
             // Act
-            var sqlInsertFields = DipMapper.GetSqlInsertFields<Activity>(connType, propertyInfos, "Id", null);
+            var sqlInsertFields = DipMapper.GetSqlInsertFields<Activity>(connType, dynamicTypeHelper, "Id", null);
 
             // Assert
             Assert.AreEqual(sqlInsertFields, " (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType)");
@@ -221,7 +220,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
             parameters.Add(new SqlParameter() { ParameterName = "Level", Value = 1 });
@@ -229,7 +228,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             parameters.Add(new SqlParameter() { ParameterName = "ActivityType", Value = 2 });
 
             // Act
-            var sqlInsertFields = DipMapper.GetSqlInsertFields<Activity>(connType, propertyInfos, "Id", parameters);
+            var sqlInsertFields = DipMapper.GetSqlInsertFields<Activity>(connType, dynamicTypeHelper, "Id", parameters);
 
             // Assert
             Assert.AreEqual(sqlInsertFields, " (Name, Level, IsActive, ActivityType) VALUES (@Name, @Level, @IsActive, @ActivityType)");
@@ -241,10 +240,10 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
 
             // Act
-            var sqlInsert = DipMapper.GetSqlInsert<Activity>(connType, propertyInfos, null, null);
+            var sqlInsert = DipMapper.GetSqlInsert<Activity>(connType, dynamicTypeHelper, null, null);
 
             // Assert
             Assert.AreEqual(sqlInsert, "INSERT INTO Activity (Id, Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Id, @Name, @Level, @IsActive, @Created, @Updated, @ActivityType)");
@@ -256,10 +255,10 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
 
             // Act
-            var sqlInsert = DipMapper.GetSqlInsert<Activity>(connType, propertyInfos, "Id", null);
+            var sqlInsert = DipMapper.GetSqlInsert<Activity>(connType, dynamicTypeHelper, "Id", null);
 
             // Assert
             Assert.AreEqual(sqlInsert, "INSERT INTO Activity (Name, Level, IsActive, Created, Updated, ActivityType) VALUES (@Name, @Level, @IsActive, @Created, @Updated, @ActivityType);SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id = SCOPE_IDENTITY();");
@@ -271,7 +270,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
             parameters.Add(new SqlParameter() { ParameterName = "Level", Value = 1 });
@@ -279,7 +278,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             parameters.Add(new SqlParameter() { ParameterName = "ActivityType", Value = 2 });
 
             // Act
-            var sqlInsert = DipMapper.GetSqlInsert<Activity>(connType, propertyInfos, "Id", parameters);
+            var sqlInsert = DipMapper.GetSqlInsert<Activity>(connType, dynamicTypeHelper, "Id", parameters);
 
             // Assert
             Assert.AreEqual(sqlInsert, "INSERT INTO Activity (Name, Level, IsActive, ActivityType) VALUES (@Name, @Level, @IsActive, @ActivityType);SELECT Id, Name, Level, IsActive, Created, Updated, ActivityType FROM Activity WHERE Id = SCOPE_IDENTITY();");
@@ -291,11 +290,11 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var parameter = new SqlParameter() {ParameterName = "Id", Value = "1"};
 
             // Act
-            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(connType, propertyInfos, null, parameter);
+            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(connType, dynamicTypeHelper, null, parameter);
 
             // Assert
             Assert.AreEqual(sqlUpdateFields, "Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType");
@@ -307,7 +306,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
             parameters.Add(new SqlParameter() { ParameterName = "Level", Value = 1 });
@@ -315,7 +314,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             parameters.Add(new SqlParameter() { ParameterName = "ActivityType", Value = 2 });
 
             // Act
-            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(connType, propertyInfos, parameters, null);
+            var sqlUpdateFields = DipMapper.GetSqlUpdateFields(connType, dynamicTypeHelper, parameters, null);
 
             // Assert
             Assert.AreEqual(sqlUpdateFields, "Name=@Name, Level=@Level, IsActive=@IsActive, ActivityType=@ActivityType");
@@ -327,10 +326,10 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
 
             // Act
-            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, propertyInfos, null, null, null);
+            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, dynamicTypeHelper, null, null, null);
 
             // Assert
             Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Id=@Id, Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType");
@@ -342,10 +341,10 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var identity = new SqlParameter() {ParameterName = "Id", Value = 1};
             // Act
-            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, propertyInfos, null, null, identity);
+            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, dynamicTypeHelper, null, null, identity);
 
             // Assert
             Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType");
@@ -357,7 +356,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var updateParameters = new List<SqlParameter>();
             updateParameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
             updateParameters.Add(new SqlParameter() { ParameterName = "Level", Value = 1 });
@@ -365,7 +364,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             updateParameters.Add(new SqlParameter() { ParameterName = "ActivityType", Value = 2 });
 
             // Act
-            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, propertyInfos, updateParameters, null, null);
+            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, dynamicTypeHelper, updateParameters, null, null);
 
             // Assert
             Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, ActivityType=@ActivityType");
@@ -377,12 +376,12 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
             var whereClauseParameters = new List<SqlParameter>();
             whereClauseParameters.Add(new SqlParameter() { ParameterName = "Id", Value = 5 });
 
             // Act
-            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, propertyInfos, null, whereClauseParameters, null);
+            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, dynamicTypeHelper, null, whereClauseParameters, null);
 
             // Assert
             Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Id=@Id, Name=@Name, Level=@Level, IsActive=@IsActive, Created=@Created, Updated=@Updated, ActivityType=@ActivityType WHERE Id=@pId");
@@ -394,7 +393,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             // Arrange
             var conn = new SqlConnection();
             var connType = DipMapper.GetConnType(conn);
-            var propertyInfos = DipMapper.GetPropertyInfos<Activity>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<Activity>();
 
             var parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter() { ParameterName = "Name", Value = "Hello World" });
@@ -406,7 +405,7 @@ namespace DevelopmentInProgress.DipMapper.Test
             whereClauseParameters.Add(new SqlParameter() { ParameterName = "Id", Value = 5 });
 
             // Act
-            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, propertyInfos, parameters, whereClauseParameters, null);
+            var sqlUpdate = DipMapper.GetSqlUpdate<Activity>(connType, dynamicTypeHelper, parameters, whereClauseParameters, null);
 
             // Assert
             Assert.AreEqual(sqlUpdate, "UPDATE Activity SET Name=@Name, Level=@Level, IsActive=@IsActive, ActivityType=@ActivityType WHERE Id=@pId");
