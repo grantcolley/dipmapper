@@ -73,15 +73,14 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="conn">The database connection.</param>
         /// <param name="parameters">A list of parameters used in the WHERE clause.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
-        /// <param name="optimiseObjectCreation">Optimises object creation by compiling a <see cref="DynamicMethod"/> for creating instances of objects of a specified type. The method is cached for reuse.</param>
         /// <returns>A list of the specified type.</returns>
-        public static IEnumerable<T> Select<T>(this IDbConnection conn, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null, bool optimiseObjectCreation = false) where T : class, new()
+        public static IEnumerable<T> Select<T>(this IDbConnection conn, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null) where T : class, new()
         {
             var connType = GetConnType(conn);
-            var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlSelect<T>(connType, propertyInfos, parameters);
+            var dynamicTypeHelper = DynamicTypeHelper.Get<T>();
+            var sql = GetSqlSelect<T>(connType, dynamicTypeHelper, parameters);
             var command = GetCommand(conn, sql, null, parameters, null, CommandType.Text, transaction);
-            var results = ExecuteReader<T>(conn, command, propertyInfos, optimiseObjectCreation);
+            var results = ExecuteReader<T>(conn, command);
             return results;
         }
 
@@ -100,9 +99,9 @@ namespace DevelopmentInProgress.DipMapper
         public static T Insert<T>(this IDbConnection conn, T target, IDbTransaction transaction = null) where T : class, new()
         {
             var connType = GetConnType(conn);
-            var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlInsert<T>(connType, propertyInfos, null, null);
-            var parameters = GetGenericParameters(target, propertyInfos, null);
+            var dynamicTypeHelper = DynamicTypeHelper.Get<T>();
+            var sql = GetSqlInsert<T>(connType, dynamicTypeHelper, null, null);
+            var parameters = GetGenericParameters(target, dynamicTypeHelper, null);
             var command = GetCommand(conn, sql, null, null, parameters, CommandType.Text, transaction);
             int recordsAffected = ExecuteNonQuery(conn, command);
             if (recordsAffected.Equals(1))
@@ -129,8 +128,8 @@ namespace DevelopmentInProgress.DipMapper
         public static T Insert<T>(this IDbConnection conn, T target, IEnumerable<IDbDataParameter> insertParameters, IDbTransaction transaction = null) where T : class, new()
         {
             var connType = GetConnType(conn);
-            var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlInsert<T>(connType, propertyInfos, null, insertParameters);
+            var dynamicTypeHelper = DynamicTypeHelper.Get<T>();
+            var sql = GetSqlInsert<T>(connType, dynamicTypeHelper, null, insertParameters);
             var command = GetCommand(conn, sql, insertParameters, null, null, CommandType.Text, transaction);
             int recordsAffected = ExecuteNonQuery(conn, command);
             if (recordsAffected.Equals(1))
@@ -157,11 +156,11 @@ namespace DevelopmentInProgress.DipMapper
         public static T Insert<T>(this IDbConnection conn, T target, string identityField, IDbTransaction transaction = null) where T : class, new()
         {
             var connType = GetConnType(conn);
-            var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, null);
-            var parameters = GetGenericParameters(target, propertyInfos, identityField);
+            var dynamicTypeHelper = DynamicTypeHelper.Get<T>();
+            var sql = GetSqlInsert<T>(connType, dynamicTypeHelper, identityField, null);
+            var parameters = GetGenericParameters(target, dynamicTypeHelper, identityField);
             var command = GetCommand(conn, sql, null, null, parameters, CommandType.Text, transaction);
-            var result = ExecuteReader<T>(conn, command, propertyInfos, false).SingleOrDefault();
+            var result = ExecuteReader<T>(conn, command).SingleOrDefault();
             return result;
         }
 
@@ -183,10 +182,10 @@ namespace DevelopmentInProgress.DipMapper
         public static T Insert<T>(this IDbConnection conn, T target, string identityField, IEnumerable<IDbDataParameter> insertParameters, IDbTransaction transaction = null) where T : class, new()
         {
             var connType = GetConnType(conn);
-            var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlInsert<T>(connType, propertyInfos, identityField, insertParameters);
+            var dynamicTypeHelper = DynamicTypeHelper.Get<T>();
+            var sql = GetSqlInsert<T>(connType, dynamicTypeHelper, identityField, insertParameters);
             var command = GetCommand(conn, sql, insertParameters, null, null, CommandType.Text, transaction);
-            var result = ExecuteReader<T>(conn, command, propertyInfos, false).SingleOrDefault();
+            var result = ExecuteReader<T>(conn, command).SingleOrDefault();
             return result;
         }
 
@@ -202,10 +201,10 @@ namespace DevelopmentInProgress.DipMapper
         public static int Update<T>(this IDbConnection conn, T target, IDbDataParameter identity, IDbTransaction transaction = null) where T : class, new()
         {
             var connType = GetConnType(conn);
-            var propertyInfos = GetPropertyInfos<T>();
+            var dynamicTypeHelper = DynamicTypeHelper.Get<T>();
             var whereClauseParameters = new List<IDbDataParameter>() {identity};
-            var sql = GetSqlUpdate<T>(connType, propertyInfos, null, whereClauseParameters, identity);
-            var parameters = GetGenericParameters(target, propertyInfos, null, identity);
+            var sql = GetSqlUpdate<T>(connType, dynamicTypeHelper, null, whereClauseParameters, identity);
+            var parameters = GetGenericParameters(target, dynamicTypeHelper, null, identity);
             var command = GetCommand(conn, sql, null, whereClauseParameters, parameters, CommandType.Text, transaction);
             return ExecuteNonQuery(conn, command);
         }
@@ -223,8 +222,8 @@ namespace DevelopmentInProgress.DipMapper
         public static int Update<T>(this IDbConnection conn, T target, IEnumerable<IDbDataParameter> updateParameters, IEnumerable<IDbDataParameter> whereClauseParameters, IDbTransaction transaction = null) where T : class, new()
         {
             var connType = GetConnType(conn);
-            var propertyInfos = GetPropertyInfos<T>();
-            var sql = GetSqlUpdate<T>(connType, propertyInfos, updateParameters, whereClauseParameters, null);
+            var dynamicTypeHelper = DynamicTypeHelper.Get<T>();
+            var sql = GetSqlUpdate<T>(connType, dynamicTypeHelper, updateParameters, whereClauseParameters, null);
             var command = GetCommand(conn, sql, updateParameters, whereClauseParameters, null, CommandType.Text, transaction);
             return ExecuteNonQuery(conn, command);
         }
@@ -293,13 +292,11 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="conn">The database connection.</param>
         /// <param name="sql">The SQL statement to execute.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
-        /// <param name="optimiseObjectCreation">Optimises object creation by compiling a <see cref="DynamicMethod"/> for creating instances of objects of a specified type. The method is cached for reuse.</param>
         /// <returns>The results of executing the SQL statement as a list of the specified type.</returns>
-        public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null, bool optimiseObjectCreation = false) where T : class, new()
+        public static IEnumerable<T> ExecuteSql<T>(this IDbConnection conn, string sql, IDbTransaction transaction = null) where T : class, new()
         {
-            var propertyInfos = GetPropertyInfos<T>();
             var command = GetCommand(conn, sql, null, null, null, CommandType.Text, transaction);
-            var results = ExecuteReader<T>(conn, command, propertyInfos, optimiseObjectCreation);
+            var results = ExecuteReader<T>(conn, command);
             return results;
         }
 
@@ -311,56 +308,12 @@ namespace DevelopmentInProgress.DipMapper
         /// <param name="procedureName">The stored procedure to execute.</param>
         /// <param name="parameters">A dictionary of parameters passed to the stored procedure.</param>
         /// <param name="transaction">A transaction to attach to the database command.</param>
-        /// <param name="optimiseObjectCreation">Optimises object creation by compiling a <see cref="DynamicMethod"/> for creating instances of objects of a specified type. The method is cached for reuse.</param>
         /// <returns>The results of executing the stored procedure as a list of the specified type.</returns>
-        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null, bool optimiseObjectCreation = false) where T : class, new()
+        public static IEnumerable<T> ExecuteProcedure<T>(this IDbConnection conn, string procedureName, IEnumerable<IDbDataParameter> parameters = null, IDbTransaction transaction = null) where T : class, new()
         {
-            var propertyInfos = GetPropertyInfos<T>();
             var command = GetCommand(conn, procedureName, parameters, null, null, CommandType.StoredProcedure, transaction);
-            var results = ExecuteReader<T>(conn, command, propertyInfos, optimiseObjectCreation);
+            var results = ExecuteReader<T>(conn, command);
             return results;
-        }
-
-        internal static IEnumerable<PropertyInfo> GetPropertyInfos<T>()
-        {
-            var propertyInfoResults = new List<PropertyInfo>();
-            PropertyInfo[] propertyInfos = typeof(T).GetProperties();
-
-            foreach (var propertyInfo in propertyInfos)
-            {
-                if (UnsupportedProperty(propertyInfo))
-                {
-                    continue;
-                }
-
-                propertyInfoResults.Add(propertyInfo);
-            }
-
-            return propertyInfoResults;
-        }
-
-        private static bool UnsupportedProperty(PropertyInfo propertyInfo)
-        {
-            // Skip non-public properties and properties that are either 
-            // classes (but not strings), interfaces, lists, generic 
-            // lists or arrays.
-            var propertyType = propertyInfo.PropertyType;
-
-            if (propertyType != typeof(string)
-                && (propertyType.IsClass
-                    || propertyType.IsInterface
-                    || propertyType.IsArray
-                    || propertyType.GetInterfaces()
-                        .Any(
-                            i =>
-                                (i.GetTypeInfo().Name.Equals(typeof(IEnumerable).Name)
-                                 || (i.IsGenericType &&
-                                     i.GetGenericTypeDefinition().Name.Equals(typeof(IEnumerable<>).Name))))))
-            {
-                return true;
-            }
-
-            return false;
         }
 
         internal static string GetSqlTableName<T>()
@@ -374,26 +327,26 @@ namespace DevelopmentInProgress.DipMapper
             return typeof(T).Name;
         }
 
-        internal static string GetSqlSelect<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> parameters)
+        internal static string GetSqlSelect<T>(ConnType connType, DynamicTypeHelper<T> dynamicTypeHelper, IEnumerable<IDbDataParameter> parameters)
         {
-            return "SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + GetSqlWhereClause(connType, parameters);
+            return "SELECT " + GetSqlSelectFields(dynamicTypeHelper) + " FROM " + GetSqlTableName<T>() + GetSqlWhereClause(connType, parameters);
         }
 
-        internal static string GetSqlInsert<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, IEnumerable<IDbDataParameter> insertParameters)
+        internal static string GetSqlInsert<T>(ConnType connType, DynamicTypeHelper<T> dynamicTypeHelper, string identityField, IEnumerable<IDbDataParameter> insertParameters)
         {
-            string insertSql = "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields<T>(connType, propertyInfos, identityField, insertParameters);
+            string insertSql = "INSERT INTO " + GetSqlTableName<T>() + GetSqlInsertFields<T>(connType, dynamicTypeHelper, identityField, insertParameters);
 
             if (string.IsNullOrWhiteSpace(identityField))
             {
                 return insertSql;
             }
 
-            return DbHelpers[connType].GetSqlSelectWithIdentity<T>(insertSql, propertyInfos, identityField);
+            return DbHelpers[connType].GetSqlSelectWithIdentity<T>(insertSql, dynamicTypeHelper, identityField);
         }
 
-        internal static string GetSqlUpdate<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> updateParameters, IEnumerable<IDbDataParameter> whereClauseParameters, IDbDataParameter identity)
+        internal static string GetSqlUpdate<T>(ConnType connType, DynamicTypeHelper<T> dynamicTypeHelper, IEnumerable<IDbDataParameter> updateParameters, IEnumerable<IDbDataParameter> whereClauseParameters, IDbDataParameter identity)
         {
-            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields(connType, propertyInfos, updateParameters, identity) + GetSqlWhereClause(connType, whereClauseParameters);
+            return "UPDATE " + GetSqlTableName<T>() + " SET " + GetSqlUpdateFields(connType, dynamicTypeHelper, updateParameters, identity) + GetSqlWhereClause(connType, whereClauseParameters);
         }
 
         internal static string GetSqlDelete<T>(ConnType connType, IEnumerable<IDbDataParameter> parameters)
@@ -424,11 +377,11 @@ namespace DevelopmentInProgress.DipMapper
             return where;
         }
 
-        internal static string GetSqlSelectFields(IEnumerable<PropertyInfo> propertyInfos)
+        internal static string GetSqlSelectFields<T>(DynamicTypeHelper<T> dynamicTypeHelper)
         {
             string fields = string.Empty;
 
-            foreach (var propertyInfo in propertyInfos)
+            foreach (var propertyInfo in dynamicTypeHelper.SupportedProperties)
             {
                 fields += propertyInfo.Name + ", ";
             }
@@ -437,12 +390,12 @@ namespace DevelopmentInProgress.DipMapper
             return fields;
         }
 
-        internal static string GetSqlInsertFields<T>(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, string identityField, IEnumerable<IDbDataParameter> insertParameters)
+        internal static string GetSqlInsertFields<T>(ConnType connType, DynamicTypeHelper<T> dynamicTypeHelper, string identityField, IEnumerable<IDbDataParameter> insertParameters)
         {
             string fields = string.Empty;
             string parameters = string.Empty;
 
-            foreach (var propertyInfo in propertyInfos)
+            foreach (var propertyInfo in dynamicTypeHelper.SupportedProperties)
             {
                 if (!string.IsNullOrWhiteSpace(identityField)
                     && propertyInfo.Name.Equals(identityField))
@@ -466,11 +419,11 @@ namespace DevelopmentInProgress.DipMapper
             return " (" + fields + ") VALUES (" + parameters + ")";
         }
 
-        internal static string GetSqlUpdateFields(ConnType connType, IEnumerable<PropertyInfo> propertyInfos, IEnumerable<IDbDataParameter> updateParameters, IDbDataParameter identity)
+        internal static string GetSqlUpdateFields<T>(ConnType connType, DynamicTypeHelper<T> dynamicTypeHelper, IEnumerable<IDbDataParameter> updateParameters, IDbDataParameter identity)
         {
             string fields = string.Empty;
 
-            foreach (var propertyInfo in propertyInfos)
+            foreach (var propertyInfo in dynamicTypeHelper.SupportedProperties)
             {
                 if (updateParameters != null
                     && !updateParameters.Any(p => p.ParameterName == propertyInfo.Name))
@@ -507,13 +460,13 @@ namespace DevelopmentInProgress.DipMapper
             return "=";
         }
 
-        internal static Dictionary<string, object> GetGenericParameters<T>(T target, IEnumerable<PropertyInfo> propertyInfos, string identityField, IDbDataParameter identityParameter = null)
+        internal static Dictionary<string, object> GetGenericParameters<T>(T target, DynamicTypeHelper<T> dynamicTypeHelper, string identityField, IDbDataParameter identityParameter = null)
         {
             var parameters = new Dictionary<string, object>();
 
-            if (propertyInfos != null)
+            if (dynamicTypeHelper.SupportedProperties != null)
             {
-                foreach (var propertyInfo in propertyInfos)
+                foreach (var propertyInfo in dynamicTypeHelper.SupportedProperties)
                 {
                     if (!string.IsNullOrWhiteSpace(identityField)
                         && identityField.Equals(propertyInfo.Name))
@@ -527,7 +480,7 @@ namespace DevelopmentInProgress.DipMapper
                         continue;
                     }
 
-                    parameters.Add(propertyInfo.Name, propertyInfo.GetValue(target));
+                    parameters.Add(propertyInfo.Name, dynamicTypeHelper.GetValue(target, propertyInfo.Name));
                 }
             }
 
@@ -627,7 +580,7 @@ namespace DevelopmentInProgress.DipMapper
             }
         }
 
-        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, IDbCommand command, IEnumerable<PropertyInfo> propertyInfos, bool optimiseObjectCreation) where T : class, new()
+        private static IEnumerable<T> ExecuteReader<T>(IDbConnection conn, IDbCommand command) where T : class, new()
         {
             IDataReader reader = null;
             var result = new List<T>();
@@ -640,7 +593,7 @@ namespace DevelopmentInProgress.DipMapper
 
                 while (reader.Read())
                 {
-                    var t = DbHelpers[connType].ReadData<T>(reader, propertyInfos);
+                    var t = DbHelpers[connType].ReadData<T>(reader);
                     result.Add(t);
                 }
             }
@@ -677,10 +630,10 @@ namespace DevelopmentInProgress.DipMapper
 
         internal interface IDbHelper
         {
-            string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField);
+            string GetSqlSelectWithIdentity<T>(string sqlInsert, DynamicTypeHelper<T> dynamicTypeHelper, string identityField);
             string GetParameterName(string name, bool isWhereClause = false);
             void AddDataParameter(IDbCommand comnmand, string parameterName, object data);
-            T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos) where T : class, new();
+            T ReadData<T>(IDataReader reader) where T : class, new();
         }
 
         internal class DefaultDbHelper : IDbHelper
@@ -697,18 +650,18 @@ namespace DevelopmentInProgress.DipMapper
             {
                 return isWhereClause ? "p" + name : name;
             }
-            
-            public virtual string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
+
+            public virtual string GetSqlSelectWithIdentity<T>(string sqlInsert, DynamicTypeHelper<T> dynamicTypeHelper, string identityField)
             {
                 return sqlInsert;
             }
 
-            public virtual T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos) where T : class, new()
+            public virtual T ReadData<T>(IDataReader reader) where T : class, new()
             {
-                var typeHelper = DynamicTypeHelper.Get<T>(propertyInfos);
+                var typeHelper = DynamicTypeHelper.Get<T>();
                 var t = typeHelper.CreateInstance();
 
-                foreach (var propertyInfo in propertyInfos)
+                foreach (var propertyInfo in typeHelper.SupportedProperties)
                 {
                     var value = reader[propertyInfo.Name];
                     if (value == DBNull.Value)
@@ -725,12 +678,12 @@ namespace DevelopmentInProgress.DipMapper
 
         internal class ReadTypeMapperDbHelper : DefaultDbHelper
         {
-            public override T ReadData<T>(IDataReader reader, IEnumerable<PropertyInfo> propertyInfos)
+            public override T ReadData<T>(IDataReader reader)
             {
-                var typeHelper = DynamicTypeHelper.Get<T>(propertyInfos);
+                var typeHelper = DynamicTypeHelper.Get<T>();
                 var t = typeHelper.CreateInstance();
 
-                foreach (var propertyInfo in propertyInfos)
+                foreach (var propertyInfo in typeHelper.SupportedProperties)
                 {
                     var fieldName = propertyInfo.Name;
                     Type propertyType;
@@ -798,9 +751,9 @@ namespace DevelopmentInProgress.DipMapper
                 return isWhereClause ? "@p" + name : "@" + name;
             }
 
-            public override string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
+            public override string GetSqlSelectWithIdentity<T>(string sqlInsert, DynamicTypeHelper<T> dynamicTypeHelper, string identityField)
             {
-                return sqlInsert + ";SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = SCOPE_IDENTITY();";
+                return sqlInsert + ";SELECT " + GetSqlSelectFields(dynamicTypeHelper) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = SCOPE_IDENTITY();";
             }
         }
 
@@ -858,9 +811,9 @@ namespace DevelopmentInProgress.DipMapper
                 return isWhereClause ? "?p" + name : "?" + name;
             }
 
-            public override string GetSqlSelectWithIdentity<T>(string sqlInsert, IEnumerable<PropertyInfo> propertyInfos, string identityField)
+            public override string GetSqlSelectWithIdentity<T>(string sqlInsert, DynamicTypeHelper<T> dynamicTypeHelper, string identityField)
             {
-                return sqlInsert + ";SELECT " + GetSqlSelectFields(propertyInfos) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = LAST_INSERT_ID();";
+                return sqlInsert + ";SELECT " + GetSqlSelectFields(dynamicTypeHelper) + " FROM " + GetSqlTableName<T>() + " WHERE " + identityField + " = LAST_INSERT_ID();";
             }
         }
     }
@@ -888,7 +841,7 @@ namespace DevelopmentInProgress.DipMapper
         internal DynamicTypeHelper(Func<T> createInstance,
             Dictionary<string, Func<T, object>> getters,
             Dictionary<string, Action<T, object>> setters,
-            IEnumerable<string> supportedProperties)
+            IEnumerable<PropertyInfo> supportedProperties)
         {
             this.getters = getters;
             this.setters = setters;
@@ -898,7 +851,7 @@ namespace DevelopmentInProgress.DipMapper
 
         internal Func<T> CreateInstance { get; private set; }
 
-        internal IEnumerable<string> SupportedProperties { get; private set; }
+        internal IEnumerable<PropertyInfo> SupportedProperties { get; private set; }
 
         internal void SetValue(T target, string fieldName, object value)
         {
@@ -925,23 +878,9 @@ namespace DevelopmentInProgress.DipMapper
     internal static class DynamicTypeHelper
     {
         internal static readonly IDictionary<Type, object> cache = new ConcurrentDictionary<Type, object>();
-
         private static int counter;
 
-        //internal static DynamicTypeHelper<T> Get<T>() where T : class, new()
-        //{
-        //    var t = typeof(T);
-
-        //    if (cache.ContainsKey(t))
-        //    {
-        //        return (DynamicTypeHelper<T>)cache[t];
-        //    }
-
-        //    var propertyInfos = PropertyHelper.GetPropertyInfos<T>();
-        //    return Get<T>(propertyInfos);
-        //}
-
-        internal static DynamicTypeHelper<T> Get<T>(IEnumerable<PropertyInfo> propertyInfos) where T : class, new()
+        internal static DynamicTypeHelper<T> Get<T>() where T : class, new()
         {
             var t = typeof(T);
 
@@ -950,15 +889,15 @@ namespace DevelopmentInProgress.DipMapper
                 return (DynamicTypeHelper<T>)cache[t];
             }
 
-            var typeHelper = CreateTypeHelper<T>(propertyInfos);
+            var typeHelper = CreateTypeHelper<T>();
             cache.Add(t, typeHelper);
             return typeHelper;
         }
 
-        private static DynamicTypeHelper<T> CreateTypeHelper<T>(IEnumerable<PropertyInfo> propertyInfos) where T : class, new()
+        private static DynamicTypeHelper<T> CreateTypeHelper<T>() where T : class, new()
         {
+            var propertyInfos = GetPropertyInfos<T>();
             var capacity = propertyInfos.Count() - 1;
-            var propertyNames = new List<string>();
             var getters = new Dictionary<string, Func<T, object>>(capacity);
             var setters = new Dictionary<string, Action<T, object>>(capacity);
 
@@ -966,12 +905,11 @@ namespace DevelopmentInProgress.DipMapper
 
             foreach (var propertyInfo in propertyInfos)
             {
-                propertyNames.Add(propertyInfo.Name);
                 getters.Add(propertyInfo.Name, GetValue<T>(propertyInfo));
                 setters.Add(propertyInfo.Name, SetValue<T>(propertyInfo));
             }
 
-            return new DynamicTypeHelper<T>(createInstance, getters, setters, propertyNames);
+            return new DynamicTypeHelper<T>(createInstance, getters, setters, propertyInfos);
         }
 
         private static Func<T> CreateInstance<T>() where T : class, new()
@@ -1023,6 +961,49 @@ namespace DevelopmentInProgress.DipMapper
         private static int GetNextCounterValue()
         {
             return Interlocked.Increment(ref counter);
+        }
+
+        private static IEnumerable<PropertyInfo> GetPropertyInfos<T>()
+        {
+            var propertyInfoResults = new List<PropertyInfo>();
+
+            PropertyInfo[] propertyInfos = typeof(T).GetProperties();
+
+            foreach (var propertyInfo in propertyInfos)
+            {
+                if (UnsupportedProperty(propertyInfo))
+                {
+                    continue;
+                }
+
+                propertyInfoResults.Add(propertyInfo);
+            }
+
+            return propertyInfoResults;
+        }
+
+        private static bool UnsupportedProperty(PropertyInfo propertyInfo)
+        {
+            // Skip non-public properties and properties that are either 
+            // classes (but not strings), interfaces, lists, generic 
+            // lists or arrays.
+            var propertyType = propertyInfo.PropertyType;
+
+            if (propertyType != typeof(string)
+                && (propertyType.IsClass
+                    || propertyType.IsInterface
+                    || propertyType.IsArray
+                    || propertyType.GetInterfaces()
+                        .Any(
+                            i =>
+                                (i.GetTypeInfo().Name.Equals(typeof(IEnumerable).Name)
+                                 || (i.IsGenericType &&
+                                     i.GetGenericTypeDefinition().Name.Equals(typeof(IEnumerable<>).Name))))))
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }
