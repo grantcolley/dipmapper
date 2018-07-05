@@ -299,7 +299,7 @@ DELETE FROM Activity WHERE Id=@pId;
             using (var conn = new SqlConnection(connectionString))
             {
                 // SQL
-                conn.ExecuteNonQuery("UPDATE Activity SET IsActive = 1;");
+                conn.ExecuteNonQuery("UPDATE Activity SET IsActive = 1");
                 
                 // Stored procedure
                 conn.ExecuteNonQuery("ResetAllActivities", parameters, CommandType.StoredProcedure);
