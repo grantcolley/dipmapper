@@ -414,6 +414,7 @@ DipMapper uses reflection to generate the SQL statements for the desired action.
 ```C#
     public class Activity<T>
     {
+        // Supported by DipMapper
         public int Id { get; set; }
         public string Name { get; set; }
         public double Level { get; set; }
