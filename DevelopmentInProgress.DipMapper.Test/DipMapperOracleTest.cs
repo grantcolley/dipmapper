@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.OracleClient;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Oracle.ManagedDataAccess.Client;
 
 namespace DevelopmentInProgress.DipMapper.Test
 {
